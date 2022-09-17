@@ -1,4 +1,4 @@
-mod color;
-mod board;
-mod actions;
-mod piece;
+pub mod board;
+pub mod actions;
+pub mod piece;
+pub mod algebraic_notation;

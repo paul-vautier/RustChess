@@ -1,4 +1,0 @@
-enum Color {
-    WHITE,
-    BLACK
-}
