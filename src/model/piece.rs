@@ -43,12 +43,12 @@ fn get_move(start : &Position, current_piece : Piece, x : usize, y : usize, boar
             Outside => Some(Box::new(Move{start: start.clone(), end})),
             Inside(option) => match option {
                 Some(piece) => {
-                    if piece.getColor() != current_piece.getColor() {
+                    if piece.get_color() != current_piece.get_color() {
                         let position = Move{
                             start: start.clone(), 
                             end
                         };
-                        let en_passant = current_piece == Piece::Pawn(current_piece.getColor().clone()) && start.y != position.end.y;
+                        let en_passant = current_piece == Piece::Pawn(current_piece.get_color().clone()) && start.y != position.end.y;
                         let capture = Capture{
                             position,
                             piece : None,
@@ -65,7 +65,7 @@ fn get_move(start : &Position, current_piece : Piece, x : usize, y : usize, boar
         _ => None,
     };
     move_option.map(|retrieved_move| {
-        if current_piece == Piece::Pawn(current_piece.getColor().clone()) && Board::promote_flag(current_piece.getColor()) == y {
+        if current_piece == Piece::Pawn(current_piece.get_color().clone()) && Board::promote_flag(current_piece.get_color()) == y {
             match retrieved_move.as_promotion() {
                 Ok(promotions) => promotions,
                 Err(_) => MovesList(vec![retrieved_move]),
@@ -122,7 +122,7 @@ impl Piece {
         moves
     }
 
-    pub fn getColor(&self) -> &Color { 
+    pub fn get_color(&self) -> &Color { 
         use Piece::*;
         match self {
             Pawn(c) => c,
