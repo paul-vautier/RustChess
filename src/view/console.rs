@@ -1,6 +1,7 @@
-use crate::model::actions::ChessAction;
-use crate::model::board::BOARD_SIZE;
+use crate::model::actions::{ChessAction, MovesList};
+use crate::model::board::{BOARD_SIZE, BOARD_X};
 use crate::model::{piece::Piece, board::Board, piece::Color};
+use crate::model::board::Square::*;
 
 use std::fmt;
 use colored::ColoredString;
@@ -32,11 +33,14 @@ impl fmt::Display for Piece {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        let mut cells = [(); BOARD_SIZE * BOARD_SIZE].map(|_| "⚠".red());
-         for (indice, option) in self.tiles.iter().enumerate() {
-            let colored_cell = match option { 
-                Some(piece) => piece.to_string(),
-                None => " ".to_string()
+        let mut cells = [(); BOARD_SIZE].map(|_| "⚠".red());
+         for (indice, square) in self.tiles.iter().enumerate() {
+            let colored_cell = match square { 
+                Inside(option) => match option {
+                    Some(piece) => piece.to_string(),
+                    None => " ".to_string()
+                },
+                Outside => " ".to_string()
             };
             
             cells[indice] = if ((indice % 2 + (indice/8 % 2)) % 2) == 0 {
@@ -47,7 +51,7 @@ impl fmt::Display for Board {
         };
 
         for (indice, cell) in cells.iter().enumerate() {
-            if indice % 8 == 0 {
+            if indice % BOARD_X == 0 {
                 writeln!(f)?;
             }
 
@@ -57,12 +61,5 @@ impl fmt::Display for Board {
             }
         }
         Ok(())
-    }
-}
-
-
-impl fmt::Display for dyn ChessAction {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, " {} ", self.to_algebraic_notation())
     }
 }

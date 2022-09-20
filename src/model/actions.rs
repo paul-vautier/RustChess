@@ -1,5 +1,5 @@
-use super::board::{Position, Board};
-use super::piece::{self, Piece, Color};
+use super::board::{Position, Board, self};
+use super::piece::{Piece};
 
 /**
  * Command pattern : 
@@ -12,11 +12,21 @@ pub trait ChessAction {
     fn execute(&self, board : &mut Board);
     fn undo(&self, board : &mut Board);
     fn is_valid(&self, board : &Board) -> bool;
-    fn as_promotion(&self) -> Result<Moves, String>;
-    fn to_algebraic_notation(&self) -> String;
+    fn as_promotion(&self) -> Result<MovesList, String>;
+    fn to_algebraic_notation(&self, board: &Board) -> String;
 }
 
-pub struct Moves(pub Vec<Box<dyn ChessAction>>);
+pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
+
+impl MovesList {
+    pub fn to_algebraic_notation(&self, board : &Board) -> String {
+        let mut result = String::from("");
+        for (index, current) in self.0.iter().enumerate() {
+            result += format!("{0} : {1}\n", index.to_string(), current.to_algebraic_notation(board)).as_str()
+        }
+        String::from(result)
+    }
+}
 pub struct Move {
     pub start: Position,
     pub end: Position,
@@ -63,12 +73,16 @@ impl ChessAction for Castle {
         todo!()
     }
 
-    fn as_promotion(&self) -> Result<Moves, String> {
+    fn as_promotion(&self) -> Result<MovesList, String> {
         todo!()
     }
 
-    fn to_algebraic_notation(&self) -> String {
-        todo!()
+    fn to_algebraic_notation(&self, board: &Board) -> String {
+        if (self.king.start.x > self.rook.start.x) {
+            String::from("OwOwO")
+        } else {
+            String::from("OwO")
+        }
     }
 }
 
@@ -85,12 +99,30 @@ impl ChessAction for Capture {
         todo!()
     }
 
-    fn as_promotion(&self) -> Result<Moves, String> {
+    fn as_promotion(&self) -> Result<MovesList, String> {
         todo!()
     }
 
-    fn to_algebraic_notation(&self) -> String {
-        todo!()
+    /**
+     * TODO : Deambiguous moves
+     */
+    fn to_algebraic_notation(&self, board: &Board) -> String {
+        let piece_char = match board.piece_at(&self.position.start) {
+            super::board::Square::Inside(option) => match option {
+                Some(piece) => match piece {
+                    Piece::Pawn(_) => board::get_file(self.position.start.x),
+                    Piece::Bishop(_) => 'B',
+                    Piece::Knight(_) => 'N',
+                    Piece::Rook(_, _) => 'R',
+                    Piece::Queen(_) => 'Q',
+                    Piece::King(_, _) => 'K',
+                },
+                None => panic!("Should not have happened : A move was created without a valid piece"),
+            },
+            Outside => panic!("Should not have happened : A move was created without a valid square"),
+        };
+        let string = piece_char.to_string();
+        string + "x" + board::get_file(self.position.end.x).to_string().as_str() + self.position.end.y.to_string().as_str()
     }
 }
 
@@ -108,12 +140,27 @@ impl ChessAction for Move {
         todo!()
     }
 
-    fn as_promotion(&self) -> Result<Moves, String> {
+    fn as_promotion(&self) -> Result<MovesList, String> {
         todo!()
     }
 
-    fn to_algebraic_notation(&self) -> String {
-        todo!()
+    fn to_algebraic_notation(&self, board: &Board) -> String {
+        let piece_char = match board.piece_at(&self.start) {
+            super::board::Square::Inside(option) => match option {
+                Some(piece) => match piece {
+                    Piece::Pawn(_) => board::get_file(self.start.x),
+                    Piece::Bishop(_) => 'B',
+                    Piece::Knight(_) => 'N',
+                    Piece::Rook(_, _) => 'R',
+                    Piece::Queen(_) => 'Q',
+                    Piece::King(_, _) => 'K',
+                },
+                None => panic!("Should not have happened : A move was created without a valid piece"),
+            },
+            Outside => panic!("Should not have happened : A move was created without a valid square"),
+        };
+        let string = piece_char.to_string();
+        string + board::get_file(self.end.x).to_string().as_str() + self.end.y.to_string().as_str()
     }
 }
 
@@ -131,11 +178,11 @@ impl ChessAction for Promote {
         todo!()
     }
 
-    fn as_promotion(&self) -> Result<Moves, String> {
+    fn as_promotion(&self) -> Result<MovesList, String> {
         todo!()
     }
 
-    fn to_algebraic_notation(&self) -> String {
+    fn to_algebraic_notation(&self, board: &Board) -> String {
         todo!()
     }
 }
