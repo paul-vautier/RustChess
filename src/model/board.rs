@@ -121,7 +121,7 @@ pub fn from_fen(notation : String) -> Result<Board,InvalidBoardErr>  {
                 '1'..='8' => {
                     let empty_size = (c.to_digit(10).unwrap_or(1) - 1) as usize;
                     for i in 0..=empty_size {
-                        tiles[index + i] = Inside(Some(Piece::Queen(get_color_fen(c))))
+                        tiles[index + i] = Inside(None)
                     }
                     index += empty_size as usize;
                 }

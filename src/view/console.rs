@@ -33,25 +33,27 @@ impl fmt::Display for Piece {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        let mut cells = [(); BOARD_SIZE].map(|_| "⚠".red());
-         for (indice, square) in self.tiles.iter().enumerate() {
+        let mut cells = [(); 64].map(|_| "⚠".red());
+        let mut index : usize = 0;
+         for (_, square) in self.tiles.iter().enumerate() {
             let colored_cell = match square { 
                 Inside(option) => match option {
                     Some(piece) => piece.to_string(),
                     None => " ".to_string()
                 },
-                Outside => " ".to_string()
+                Outside => continue
             };
             
-            cells[indice] = if ((indice % 2 + (indice/8 % 2)) % 2) == 0 {
+            cells[index] = if ((index % 2 + (index/8 % 2)) % 2) == 0 {
                 colored_cell.to_string().on_truecolor(120, 80, 0)
             } else { 
                 colored_cell.to_string().on_truecolor(153, 102, 0)
             };
+            index+=1;
         };
 
         for (indice, cell) in cells.iter().enumerate() {
-            if indice % BOARD_X == 0 {
+            if indice % 8 == 0 {
                 writeln!(f)?;
             }
 
