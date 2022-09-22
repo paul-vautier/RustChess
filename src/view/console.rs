@@ -35,7 +35,7 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let mut cells = [(); 64].map(|_| "⚠".red());
         let mut index : usize = 0;
-         for (_, square) in self.tiles.iter().enumerate() {
+         for (_, square) in self.mailbox.iter().enumerate() {
             let colored_cell = match square { 
                 Inside(option) => match option {
                     Some(piece) => piece.to_string(),

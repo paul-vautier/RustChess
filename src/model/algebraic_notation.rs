@@ -1,8 +1,8 @@
-use super::{board::{Board, self, Position},
+use super::{board::{Board},
  actions::{ChessAction, Move}};
 
 
 pub fn from_algebraic_notation(board : &Board, notation : String) -> impl ChessAction {
 
-    Move{start: Position::new(0, 0).unwrap(), end : Position::new(0, 0).unwrap()}
+    Move{start: 0, end : 0}
 }
