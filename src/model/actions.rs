@@ -125,15 +125,15 @@ impl ChessAction for Capture {
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
         Ok(MovesList(vec![
             Box::new(Promote {
-                piece: Piece::Bishop(color.clone()),
+                piece: Piece::Bishop(*color),
                 previous_action: Box::new(self.clone()),
             }),
             Box::new(Promote {
-                piece: Piece::Rook(color.clone(), true),
+                piece: Piece::Rook(*color, u32::MAX),
                 previous_action: Box::new(self.clone()),
             }),
             Box::new(Promote {
-                piece: Piece::Queen(color.clone()),
+                piece: Piece::Queen(*color),
                 previous_action: Box::new(self.clone()),
             }),
         ]))
@@ -236,7 +236,7 @@ impl ChessAction for Promote {
 pub fn get_moves_for_piece_and_position(
     start: usize,
     end: usize,
-    current_piece: Piece,
+    current_piece: &Piece,
     board: &Board,
 ) -> MovesList {
     let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
@@ -252,8 +252,8 @@ pub fn get_moves_for_piece_and_position(
                             start: start.clone(),
                             end,
                         };
-                        let en_passant = current_piece
-                            == Piece::Pawn(current_piece.get_color().clone())
+                        let en_passant = *current_piece
+                            == Piece::Pawn(*current_piece.get_color())
                             && start != position.end;
                         let capture = Capture {
                             position,
@@ -273,7 +273,7 @@ pub fn get_moves_for_piece_and_position(
         };
     move_option
         .map(|retrieved_move| {
-            if current_piece == Piece::Pawn(current_piece.get_color().clone())
+            if *current_piece == Piece::Pawn(*current_piece.get_color())
                 && Board::is_on_promote_flag(current_piece.get_color(), end) 
             {
                 match retrieved_move.as_promotion(current_piece.get_color()) {
@@ -287,3 +287,6 @@ pub fn get_moves_for_piece_and_position(
         .unwrap_or(MovesList(Vec::new()))
 }
 
+pub fn get_pawn_capture() -> MovesList {
+    return MovesList(Vec::new())
+}

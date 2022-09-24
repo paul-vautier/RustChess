@@ -8,7 +8,7 @@ pub const BOARD_SIZE : usize = BOARD_X * BOARD_Y;
 pub const BLACK_ROW : usize = 2;
 pub const WHITE_ROW : usize = 9;
 
-const mailbox_indices :[usize; 64] = [   
+pub const MAILBOX_INDICES :[usize; 64] = [   
     21, 22, 23, 24, 25, 26, 27, 28,
     31, 32, 33, 34, 35, 36, 37, 38,
     41, 42, 43, 44, 45, 46, 47, 48,
@@ -24,12 +24,6 @@ pub struct InvalidBoardErr {
 }
 
 
-#[derive(Copy, Clone)]
-pub struct Position {
-    pub x : usize, 
-    pub y : usize,
-}
-
 pub enum Square {
     Inside(Option<Piece>),
     Outside
@@ -43,8 +37,11 @@ impl Board {
     /**
      * Position on the actual board, from 0 to 64
      */
-    pub fn piece_at_board_index(&self, position : usize) -> &Square {
-        &self.mailbox[mailbox_indices[position] as usize]
+    pub fn piece_at_board_index(&self, position : usize) -> &Option<Piece>{
+        match &self.mailbox[MAILBOX_INDICES[position] as usize] {
+            Square::Inside(option) => option,
+            Square::Outside => &None,
+        }
     }
 
     /**
@@ -69,7 +66,7 @@ impl Board {
     }
 
     pub fn to_mailbox_index(x: usize, y: usize) -> usize {
-        return mailbox_indices[x + 8 * y];
+        return MAILBOX_INDICES[x + 8 * y];
     }
 
     pub fn get_color_fen(c : char) -> Color{
@@ -104,14 +101,14 @@ impl Board {
                 Some(current) => match current {
                     // TODO : VERIFY KING MOVED
                     'k' =>  {
-                        mailbox[index] = Inside(Some(Piece::King(Board::get_color_fen(c), false)));
+                        mailbox[index] = Inside(Some(Piece::King(Board::get_color_fen(c), 0)));
                     }
                     'q' =>  {
                         mailbox[index] = Inside(Some(Piece::Queen(Board::get_color_fen(c))));
                     }
                     // TODO : VERIFY TOWER MOVED
                     'r' =>  {
-                        mailbox[index] = Inside(Some(Piece::Rook(Board::get_color_fen(c), false)));
+                        mailbox[index] = Inside(Some(Piece::Rook(Board::get_color_fen(c), 0)));
                     }
                     'b' =>  {
                         mailbox[index] = Inside(Some(Piece::Bishop(Board::get_color_fen(c))));
