@@ -1,5 +1,6 @@
-use std::ops::{Deref, DerefMut};
 use crate::model::board::Square::*;
+use crate::util::util;
+use std::ops::{Deref, DerefMut};
 
 use super::board::{self, Board};
 use super::piece::{Color, Piece};
@@ -17,6 +18,8 @@ pub trait ChessAction {
     fn is_valid(&self, board: &Board) -> bool;
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String>;
     fn to_algebraic_notation(&self, board: &Board) -> String;
+    fn target_square(&self) -> usize;
+    fn start_square(&self) -> usize;
 }
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
@@ -53,6 +56,11 @@ pub struct Move {
     pub end: usize,
 }
 
+impl Move {
+    pub fn new(start: usize, end: usize) -> Self {
+        Move { start, end }
+    }
+}
 impl Clone for Move {
     fn clone(&self) -> Self {
         Move {
@@ -67,17 +75,37 @@ pub struct Promote {
     pub previous_action: Box<dyn ChessAction>,
 }
 
+impl Promote {
+    pub fn new(piece: Piece, previous_action: Box<dyn ChessAction>) -> Self {
+        Promote {
+            piece,
+            previous_action,
+        }
+    }
+}
 pub struct Castle {
     pub king: Move,
     pub rook: Move,
 }
-
+impl Castle {
+    pub fn new(king: Move, rook: Move) -> Self {
+        Castle { king, rook }
+    }
+}
 pub struct Capture {
     pub position: Move,
     pub piece: Option<Piece>,
     pub en_passant: bool,
 }
-
+impl Capture {
+    pub fn new(position: Move, piece: Option<Piece>, en_passant: bool) -> Self {
+        Capture {
+            position,
+            piece,
+            en_passant,
+        }
+    }
+}
 /**
  * Clones without cloning the actual piece
  */
@@ -111,6 +139,14 @@ impl ChessAction for Castle {
             String::from("OwO")
         }
     }
+
+    fn target_square(&self) -> usize {
+        self.king.end
+    }
+
+    fn start_square(&self) -> usize {
+        self.king.start
+    }
 }
 
 impl ChessAction for Capture {
@@ -125,15 +161,18 @@ impl ChessAction for Capture {
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
         Ok(MovesList(vec![
             Box::new(Promote {
-                piece: Piece::Bishop(*color),
+                piece: Piece::Bishop { color: *color },
                 previous_action: Box::new(self.clone()),
             }),
             Box::new(Promote {
-                piece: Piece::Rook(*color, u32::MAX),
+                piece: Piece::Rook {
+                    color: *color,
+                    first_move: 0,
+                },
                 previous_action: Box::new(self.clone()),
             }),
             Box::new(Promote {
-                piece: Piece::Queen(*color),
+                piece: Piece::Queen { color: *color },
                 previous_action: Box::new(self.clone()),
             }),
         ]))
@@ -146,12 +185,12 @@ impl ChessAction for Capture {
         let piece_char = match board.piece_at_mailbox_index(self.position.start) {
             super::board::Square::Inside(option) => match option {
                 Some(piece) => match piece {
-                    Piece::Pawn(_) => Board::get_file(self.position.start),
-                    Piece::Bishop(_) => 'B',
-                    Piece::Knight(_) => 'N',
-                    Piece::Rook(_, _) => 'R',
-                    Piece::Queen(_) => 'Q',
-                    Piece::King(_, _) => 'K',
+                    Piece::Pawn { .. } => Board::get_file(self.position.start),
+                    Piece::Bishop { .. } => 'B',
+                    Piece::Knight { .. } => 'N',
+                    Piece::Rook { .. } => 'R',
+                    Piece::Queen { .. } => 'Q',
+                    Piece::King { .. } => 'K',
                 },
                 None => {
                     panic!("Should not have happened : A move was created without a valid piece")
@@ -167,15 +206,33 @@ impl ChessAction for Capture {
             + Board::get_file(self.position.end).to_string().as_str()
             + self.position.end.to_string().as_str()
     }
+
+    fn target_square(&self) -> usize {
+        self.position.target_square()
+    }
+
+    fn start_square(&self) -> usize {
+        self.position.start
+    }
 }
 
 impl ChessAction for Move {
     fn execute(&self, board: &mut Board) {
-        //TODO : Set rook moved
+        board.mailbox[self.end] = match board.mailbox[self.start] {
+            Inside(option) => Inside(option),
+            Outside => Outside,
+        };
+        board.mailbox[self.start] = Inside(None);
+        println!("{}", board);
     }
 
     fn undo(&self, board: &mut Board) {
-        //TODO : Unset rook moved
+        // Todo : rook move
+        if let Inside(mut start) = board.mailbox[self.end] {
+            if let Inside(mut end) = board.mailbox[self.start] {
+                start.replace(end.take().unwrap());
+            }
+        }
     }
 
     fn is_valid(&self, board: &Board) -> bool {
@@ -190,12 +247,12 @@ impl ChessAction for Move {
         let piece_char = match board.piece_at_mailbox_index(self.start) {
             super::board::Square::Inside(option) => match option {
                 Some(piece) => match piece {
-                    Piece::Pawn(_) => Board::get_file(self.start),
-                    Piece::Bishop(_) => 'B',
-                    Piece::Knight(_) => 'N',
-                    Piece::Rook(_, _) => 'R',
-                    Piece::Queen(_) => 'Q',
-                    Piece::King(_, _) => 'K',
+                    Piece::Pawn { .. } => Board::get_file(self.start),
+                    Piece::Bishop { .. } => 'B',
+                    Piece::Knight { .. } => 'N',
+                    Piece::Rook { .. } => 'R',
+                    Piece::Queen { .. } => 'Q',
+                    Piece::King { .. } => 'K',
                 },
                 None => {
                     panic!("Should not have happened : A move was created without a valid piece")
@@ -207,6 +264,14 @@ impl ChessAction for Move {
         };
         let string = piece_char.to_string();
         string + Board::get_file(self.end).to_string().as_str() + self.end.to_string().as_str()
+    }
+
+    fn target_square(&self) -> usize {
+        self.end
+    }
+
+    fn start_square(&self) -> usize {
+        self.start
     }
 }
 
@@ -228,53 +293,69 @@ impl ChessAction for Promote {
     }
 
     fn to_algebraic_notation(&self, board: &Board) -> String {
-        todo!()
+        "promote".to_string()
+    }
+
+    fn target_square(&self) -> usize {
+        self.previous_action.target_square()
+    }
+
+    fn start_square(&self) -> usize {
+        self.previous_action.start_square()
     }
 }
 
-
-pub fn get_moves_for_piece_and_position(
+pub fn get_moves_for_piece_and_direction(
     start: usize,
-    end: usize,
+    direction: i32,
+    is_slide: bool,
     current_piece: &Piece,
     board: &Board,
 ) -> MovesList {
-    let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
-            Outside => Some(Box::new(Move {
-                start: start.clone(),
-                end,
-            })),
-
+    let mut moves = MovesList(Vec::new());
+    let mut end = util::add_usize(start, direction);
+    loop {
+        let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
+            Outside => break,
             Inside(option) => match option {
                 Some(piece) => {
                     if piece.get_color() != current_piece.get_color() {
-                        let position = Move {
-                            start: start.clone(),
-                            end,
-                        };
                         let en_passant = *current_piece
-                            == Piece::Pawn(*current_piece.get_color())
-                            && start != position.end;
-                        let capture = Capture {
-                            position,
-                            piece: None,
-                            en_passant,
-                        };
-                        Some(Box::new(capture))
-                    } else {
-                        None
+                            == (Piece::Pawn {
+                                color: *current_piece.get_color(),
+                            })
+                            && start != end;
+                        let capture = Capture::new(Move::new(start, end), None, en_passant);
+                        moves.push(Box::new(capture));
                     }
+                    break;
                 }
-                None => Some(Box::new(Move {
-                    start: start.clone(),
-                    end,
-                })),
+                None => Some(Box::new(Move::new(start, end))),
             },
         };
+
+        moves.append(&mut to_promotion(move_option, current_piece, end));
+        if !is_slide {
+            break;
+        }
+
+        end = util::add_usize(end, direction);
+    }
+    moves
+}
+
+fn to_promotion(
+    move_option: Option<Box<dyn ChessAction>>,
+    current_piece: &Piece,
+    end: usize,
+) -> MovesList {
     move_option
         .map(|retrieved_move| {
-            if *current_piece == Piece::Pawn(*current_piece.get_color())
-                && Board::is_on_promote_flag(current_piece.get_color(), end) 
+            if *current_piece
+                == (Piece::Pawn {
+                    color: *current_piece.get_color(),
+                })
+                && Board::is_on_promote_flag(current_piece.get_color(), end)
             {
                 match retrieved_move.as_promotion(current_piece.get_color()) {
                     Ok(promotions) => promotions,
@@ -285,8 +366,4 @@ pub fn get_moves_for_piece_and_position(
             }
         })
         .unwrap_or(MovesList(Vec::new()))
-}
-
-pub fn get_pawn_capture() -> MovesList {
-    return MovesList(Vec::new())
 }
