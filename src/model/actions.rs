@@ -2,7 +2,7 @@ use crate::model::board::Square::*;
 use crate::util::util;
 use std::ops::{Deref, DerefMut};
 
-use super::board::{Board, InvalidMoveError};
+use super::board::{Board, InvalidMoveError, Square};
 use super::piece::{Color, Piece};
 
 /**
@@ -156,14 +156,23 @@ impl ChessAction for Castle {
 impl ChessAction for Capture {
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         self.piece = board.move_piece(self.position.start, self.position.end)?;
+        if self.en_passant_position.is_some() {
+            self.piece = board.remove_piece(self.en_passant_position.unwrap());
+        }
         Ok(())
     }
 
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         board.move_piece(self.position.end, self.position.start)?;
-        let piece_pos = self.en_passant_position.map(|position| position).unwrap_or(self.position.end);
+        let piece_pos = self.en_passant_position.map(|position| {
+                board.en_passant_position = Some((self.position.end, position));
+                position
+            }
+        )
+            .unwrap_or(self.position.end);
         board.add_piece(piece_pos, self.piece.take().unwrap())
             .map_err(|error| InvalidMoveError{start : self.position.start, end: self.position.end, reason: error.reason})?;
+        
        Ok(()) 
     }
 
@@ -319,6 +328,7 @@ pub fn get_moves_for_piece_and_direction(
     current_piece: &Piece,
     board: &Board,
 ) -> MovesList {
+
     let mut moves = MovesList(Vec::new());
     let mut end = util::add_usize(start, direction);
     loop {
@@ -344,6 +354,19 @@ pub fn get_moves_for_piece_and_direction(
         end = util::add_usize(end, direction);
     }
     moves
+}
+pub fn pawn_captures(from: usize, to: usize, color: &Color, board: &Board) -> Option<Box<dyn ChessAction>> {
+    if let Square::Inside(Some(piece)) = board.piece_at_mailbox_index(to) {
+        if piece.get_color() != color {
+           return Some(Box::new(Capture::new(Move::new(from ,to), None, None)))
+        }
+    } else if let Some((ghost, pawn)) = board.en_passant_position {
+        if ghost == to {
+            return Some(Box::new(Capture::new(Move::new(from ,to), None, Some(pawn))))
+        }
+    }
+
+    None
 }
 
 fn to_promotion(

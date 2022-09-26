@@ -1,6 +1,7 @@
 use crate::util::util;
 
 use super::actions;
+use super::actions::ChessAction;
 use super::actions::MovesList;
 use super::board::Board;
 use super::board::Square;
@@ -67,12 +68,13 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
             board,
         ));
     }
-    moves.append(&mut pawn_captures(position, color, board));
-    return moves;
-}
 
-fn pawn_captures(position: usize, color: &Color, board: &Board) -> MovesList {
-    MovesList(Vec::new())
+    let take_right = util::add_usize(position, direction - 1);
+    let take_left = util::add_usize(position, direction + 1);
+
+    moves.extend(actions::pawn_captures(position, take_right, color, board));
+    moves.extend(actions::pawn_captures(position,take_left,  color, board));
+    return moves;
 }
 
 fn moves_from_slice(position: usize, directions: &[i32], piece: &Piece, board: &Board) -> MovesList {

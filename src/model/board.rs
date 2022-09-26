@@ -82,12 +82,6 @@ impl Board {
 
         self.add_piece(end, current).map_err(|removal| InvalidMoveError{start, end, reason: removal.reason})?;
 
-        self.en_passant_position = None;
-        
-        if current == (Piece::Pawn{color: *current.get_color()}) && start.abs_diff(end) == 2 * BOARD_X {
-            self.en_passant_position = Some((start.average_floor(&end), end));
-        }
-
         Ok(option)
     }
 
@@ -113,6 +107,8 @@ impl Board {
 
     pub fn do_move(&mut self, mut action : Box<dyn ChessAction>) {
         if let Ok(()) = action.execute(self) {
+            self.en_passant_position = None;
+            
             self.turn+=1;
             match &mut self.mailbox[action.target_square()] {
                 Square::Inside(ref mut option) => match option.as_mut() {
@@ -125,6 +121,11 @@ impl Board {
                             }
                             println!("first move {}", first_move);
 
+                        }
+                        Piece::Pawn{color: _} => {
+                            if action.target_square().abs_diff(action.start_square()) == 2 * BOARD_X {
+                                self.en_passant_position = Some((action.start_square().average_floor(&action.target_square()), action.target_square()));
+                            }                
                         }
                         _ => (),
                     },
@@ -151,9 +152,14 @@ impl Board {
                                         *first_move = u32::MAX;
                                     }
                                     println!("first move {}", first_move);
+                                },
+                                Piece::Pawn{color: _} => {
+                                    if action.target_square().abs_diff(action.start_square()) == 2 * BOARD_X {
+                                        self.en_passant_position = Some((action.start_square().average_floor(&action.target_square()), action.target_square()));
+                                    }                
                                 }
                                 _ => (),
-                            },
+                            }
                             None => (),
                         },
                         Square::Outside => (),
