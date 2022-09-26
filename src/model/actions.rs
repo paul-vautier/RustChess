@@ -2,7 +2,7 @@ use crate::model::board::Square::*;
 use crate::util::util;
 use std::ops::{Deref, DerefMut};
 
-use super::board::{self, Board};
+use super::board::{Board, InvalidMoveError};
 use super::piece::{Color, Piece};
 
 /**
@@ -13,8 +13,8 @@ use super::piece::{Color, Piece};
  * En Passant
  */
 pub trait ChessAction {
-    fn execute(&self, board: &mut Board);
-    fn undo(&self, board: &mut Board);
+    fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>; 
+    fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>;
     fn is_valid(&self, board: &Board) -> bool;
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String>;
     fn to_algebraic_notation(&self, board: &Board) -> String;
@@ -95,14 +95,14 @@ impl Castle {
 pub struct Capture {
     pub position: Move,
     pub piece: Option<Piece>,
-    pub en_passant: bool,
+    pub en_passant_position: Option<usize>,
 }
 impl Capture {
-    pub fn new(position: Move, piece: Option<Piece>, en_passant: bool) -> Self {
+    pub fn new(position: Move, piece: Option<Piece>, en_passant_position: Option<usize>) -> Self {
         Capture {
             position,
             piece,
-            en_passant,
+            en_passant_position,
         }
     }
 }
@@ -114,15 +114,19 @@ impl Clone for Capture {
         Capture {
             position: self.position.clone(),
             piece: None,
-            en_passant: self.en_passant,
+            en_passant_position: self.en_passant_position,
         }
     }
 }
 
 impl ChessAction for Castle {
-    fn execute(&self, board: &mut Board) {}
+    fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>{
+        todo!();
+    }
 
-    fn undo(&self, board: &mut Board) {}
+    fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
+        todo!();
+    }
 
     fn is_valid(&self, board: &Board) -> bool {
         todo!()
@@ -150,9 +154,18 @@ impl ChessAction for Castle {
 }
 
 impl ChessAction for Capture {
-    fn execute(&self, board: &mut Board) {}
+    fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
+        self.piece = board.move_piece(self.position.start, self.position.end)?;
+        Ok(())
+    }
 
-    fn undo(&self, board: &mut Board) {}
+    fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
+        board.move_piece(self.position.end, self.position.start)?;
+        let piece_pos = self.en_passant_position.map(|position| position).unwrap_or(self.position.end);
+        board.add_piece(piece_pos, self.piece.take().unwrap())
+            .map_err(|error| InvalidMoveError{start : self.position.start, end: self.position.end, reason: error.reason})?;
+       Ok(()) 
+    }
 
     fn is_valid(&self, board: &Board) -> bool {
         todo!()
@@ -217,22 +230,14 @@ impl ChessAction for Capture {
 }
 
 impl ChessAction for Move {
-    fn execute(&self, board: &mut Board) {
-        board.mailbox[self.end] = match board.mailbox[self.start] {
-            Inside(option) => Inside(option),
-            Outside => Outside,
-        };
-        board.mailbox[self.start] = Inside(None);
-        println!("{}", board);
+    fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>{
+        board.move_piece(self.start, self.end)?;
+        Ok(())
     }
 
-    fn undo(&self, board: &mut Board) {
-        // Todo : rook move
-        if let Inside(mut start) = board.mailbox[self.end] {
-            if let Inside(mut end) = board.mailbox[self.start] {
-                start.replace(end.take().unwrap());
-            }
-        }
+    fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>{
+        board.move_piece(self.end, self.start)?;
+        Ok(())
     }
 
     fn is_valid(&self, board: &Board) -> bool {
@@ -276,12 +281,14 @@ impl ChessAction for Move {
 }
 
 impl ChessAction for Promote {
-    fn execute(&self, board: &mut Board) {
+    fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>{
+        todo!()
         //TODO : Set rook moved
     }
 
-    fn undo(&self, board: &mut Board) {
+    fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>{
         //TODO : Unset rook moved
+        todo!()
     }
 
     fn is_valid(&self, board: &Board) -> bool {
@@ -320,12 +327,7 @@ pub fn get_moves_for_piece_and_direction(
             Inside(option) => match option {
                 Some(piece) => {
                     if piece.get_color() != current_piece.get_color() {
-                        let en_passant = *current_piece
-                            == (Piece::Pawn {
-                                color: *current_piece.get_color(),
-                            })
-                            && start != end;
-                        let capture = Capture::new(Move::new(start, end), None, en_passant);
+                        let capture = Capture::new(Move::new(start, end), None, None);
                         moves.push(Box::new(capture));
                     }
                     break;

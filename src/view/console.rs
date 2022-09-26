@@ -41,7 +41,7 @@ impl fmt::Display for Board {
                     None => " ".to_string(),
                 },
                 Outside => continue,
-            };
+             };
 
             cells[index] = if ((index % 2 + (index / 8 % 2)) % 2) == 0 {
                 colored_cell.to_string().on_truecolor(120, 80, 0)

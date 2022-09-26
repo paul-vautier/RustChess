@@ -5,13 +5,13 @@ use std::{
 
 use tetra::{
     graphics::{self, mesh::Mesh, DrawParams, Rectangle, Texture},
-    input::{self, MouseButton},
+    input::{self, MouseButton, Key},
     math::Vec2,
     Context, State, TetraError,
 };
 
 use crate::model::{
-    actions::{self, ChessAction},
+    actions::{ChessAction},
     board::{Board, Square, TO_BOARD, TO_MAILBOX},
     piece::{self, Color, Piece},
 };
@@ -128,22 +128,21 @@ impl TetraState {
 
         let position = x + 8 * y;
         if let Some(start) = self.selected_piece {
-            println!("d");
 
             if let Some(piece) = self.board.piece_at_board_index(start as usize) {
                 let mut moves =
                     piece.valid_moves(TO_MAILBOX[start], piece.get_color(), &self.board);
-                let selected_action: Vec<&mut Box<dyn ChessAction>> = moves
-                    .deref_mut()
-                    .into_iter()
-                    .filter(|item| {
-                        item.start_square() == TO_MAILBOX[start]
-                            && item.target_square() == TO_MAILBOX[position] as usize
-                    })
-                    .collect();
+                let mut selected : Vec<Box<dyn ChessAction>> = Vec::new();
 
-                if !selected_action.is_empty() {
-                    selected_action[0].execute(&mut self.board);
+                for i in (0..moves.len()).rev() {
+                    if moves[i].start_square() == TO_MAILBOX[start]
+                        && moves[i].target_square() == TO_MAILBOX[position] as usize {
+                            selected.push(moves.remove(i))
+                    }
+                }
+
+                if !selected.is_empty() {
+                    self.board.do_move(selected.remove(0));
                 }
             }
         }
@@ -153,6 +152,13 @@ impl TetraState {
         self.valid_squares = vec![];
     }
 
+
+    fn handle_key_pressed(&mut self, key: Key) {
+        if key == Key::Left {
+            self.board.undo_last_move();
+            self.view = self.board_to_displayable();
+        }
+    }
     fn board_to_displayable(&self) -> DisplayableBoard {
         let mut board = [(); 64].map(|_| {
             Some(Piece::Pawn {
@@ -268,6 +274,9 @@ impl State for TetraState {
                     input::get_mouse_x(ctx),
                     input::get_mouse_y(ctx),
                 );
+            },
+            tetra::Event::KeyPressed { key } => {
+                self.handle_key_pressed(key)
             }
             _ => (),
         }

@@ -1,3 +1,8 @@
+use std::collections::VecDeque;
+use tetra::math::num_integer::Average;
+
+
+use super::actions::ChessAction;
 use super::piece::Color;
 use super::piece::Piece;
 
@@ -23,6 +28,19 @@ pub struct InvalidBoardErr {
     pub err: String,
 }
 
+pub struct InvalidMoveError {
+    pub start : usize,
+    pub end : usize,
+    pub reason : String,
+}
+
+pub struct InvalidRemovalError {
+    pub position: usize,
+    pub reason : String,
+}
+
+
+
 pub enum Square {
     Inside(Option<Piece>),
     Outside,
@@ -30,6 +48,9 @@ pub enum Square {
 
 pub struct Board {
     pub mailbox: [Square; BOARD_SIZE],
+    pub en_passant_position : Option<(usize,usize)>, // (ghost, pawn)
+    pub history : VecDeque<Box<dyn ChessAction>>, 
+    pub turn : u32,
 }
 
 impl Board {
@@ -48,6 +69,99 @@ impl Board {
      */
     pub fn piece_at_mailbox_index(&self, position: usize) -> &Square {
         &self.mailbox[position]
+    }
+
+    pub fn move_piece(&mut self, start: usize, end: usize) -> Result<Option<Piece>, InvalidMoveError> {
+        let current = match self.remove_piece(start){
+            Some(piece) => piece,
+            None => return Err(InvalidMoveError{start, end, reason : "start is empty".to_string()}),
+        };
+
+        let mut option = self.remove_piece(end);
+        self.remove_piece(start); 
+
+        self.add_piece(end, current).map_err(|removal| InvalidMoveError{start, end, reason: removal.reason})?;
+
+        self.en_passant_position = None;
+        
+        if current == (Piece::Pawn{color: *current.get_color()}) && start.abs_diff(end) == 2 * BOARD_X {
+            self.en_passant_position = Some((start.average_floor(&end), end));
+        }
+
+        Ok(option)
+    }
+
+    pub fn remove_piece(&mut self, position : usize) -> Option<Piece>{
+        match &mut self.mailbox[position] {
+            Square::Inside(option) => option.take(),
+            Square::Outside => None,
+        }
+    }    
+    
+    pub fn add_piece(&mut self, position : usize, piece: Piece) -> Result<(), InvalidRemovalError>{
+        match &mut self.mailbox[position] {
+            Square::Inside(option) => {
+                if option.is_some() {
+                    return Err(InvalidRemovalError{position, reason: "cannot add a piece to a non empty square".to_string()})
+                }
+                *option = Some(piece);
+                Ok(())
+            },
+            Square::Outside => Err(InvalidRemovalError{position, reason: "cannot add a piece outside the board".to_string()}),
+        }
+    }
+
+    pub fn do_move(&mut self, mut action : Box<dyn ChessAction>) {
+        if let Ok(()) = action.execute(self) {
+            self.turn+=1;
+            match &mut self.mailbox[action.target_square()] {
+                Square::Inside(ref mut option) => match option.as_mut() {
+                    Some(piece) => match piece {
+                        Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
+                        {
+                            println!("first move {}", first_move);
+                            if *first_move > self.turn {
+                                *first_move = self.turn;
+                            }
+                            println!("first move {}", first_move);
+
+                        }
+                        _ => (),
+                    },
+                    None => (),
+                },
+                Square::Outside => (),
+            }
+            self.history.push_back(action)
+        }
+    }
+
+    pub fn undo_last_move(&mut self) {
+        match self.history.pop_back() {
+            Some(mut action) => {
+                if let Ok(()) = action.undo(self) {
+                    self.turn-=1;
+                    match &mut self.mailbox[action.start_square()] {
+                        Square::Inside(ref mut option) => match option.as_mut() {
+                            Some(piece) => match piece {
+                                Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
+                                {
+                                    println!("first move {}", first_move);
+                                    if *first_move > self.turn {
+                                        *first_move = u32::MAX;
+                                    }
+                                    println!("first move {}", first_move);
+                                }
+                                _ => (),
+                            },
+                            None => (),
+                        },
+                        Square::Outside => (),
+                    };
+                }
+            },
+            None => (),
+        };
     }
 
     /**
@@ -74,7 +188,7 @@ impl Board {
     pub fn is_on_pawn_flag(color: &Color, index: usize) -> bool {
         match color {
             Color::WHITE => index / BOARD_X == WHITE_ROW - 1,
-            Color::BLACK => index / BOARD_X == BLACK_ROW - 1,
+            Color::BLACK => index / BOARD_X == BLACK_ROW + 1,
         }
     }
 
@@ -179,6 +293,6 @@ impl Board {
             index += 1;
         }
 
-        Ok(Board { mailbox })
+        Ok(Board { mailbox , en_passant_position: None, history: VecDeque::new(), turn: 0})
     }
 }
