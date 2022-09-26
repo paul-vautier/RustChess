@@ -48,7 +48,7 @@ pub enum Square {
 
 pub struct Board {
     pub mailbox: [Square; BOARD_SIZE],
-    pub en_passant_position : Option<(usize,usize)>, // (ghost, pawn)
+    pub double_pawn_move : Option<(usize,usize)>, // (ghost, pawn)
     pub history : VecDeque<Box<dyn ChessAction>>, 
     pub turn : u32,
 }
@@ -107,7 +107,7 @@ impl Board {
 
     pub fn do_move(&mut self, mut action : Box<dyn ChessAction>) {
         if let Ok(()) = action.execute(self) {
-            self.en_passant_position = None;
+            self.double_pawn_move = None;
             
             self.turn+=1;
             match &mut self.mailbox[action.target_square()] {
@@ -123,9 +123,7 @@ impl Board {
 
                         }
                         Piece::Pawn{color: _} => {
-                            if action.target_square().abs_diff(action.start_square()) == 2 * BOARD_X {
-                                self.en_passant_position = Some((action.start_square().average_floor(&action.target_square()), action.target_square()));
-                            }                
+                            self.double_pawn_move = action.double_forward()             
                         }
                         _ => (),
                     },
@@ -152,11 +150,6 @@ impl Board {
                                         *first_move = u32::MAX;
                                     }
                                     println!("first move {}", first_move);
-                                },
-                                Piece::Pawn{color: _} => {
-                                    if action.target_square().abs_diff(action.start_square()) == 2 * BOARD_X {
-                                        self.en_passant_position = Some((action.start_square().average_floor(&action.target_square()), action.target_square()));
-                                    }                
                                 }
                                 _ => (),
                             }
@@ -168,6 +161,14 @@ impl Board {
             },
             None => (),
         };
+        if let Some(action) = self.history.back() {
+            if let Square::Inside(Some(piece)) = self.mailbox[action.target_square()] {
+                if piece == (Piece::Pawn {color : *piece.get_color()}) {
+                    self.double_pawn_move = action.double_forward();
+                }
+
+            }
+        }
     }
 
     /**
@@ -299,6 +300,6 @@ impl Board {
             index += 1;
         }
 
-        Ok(Board { mailbox , en_passant_position: None, history: VecDeque::new(), turn: 0})
+        Ok(Board { mailbox , double_pawn_move: None, history: VecDeque::new(), turn: 0})
     }
 }

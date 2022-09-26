@@ -1,8 +1,10 @@
+use tetra::math::num_integer::Average;
+
 use crate::model::board::Square::*;
 use crate::util::util;
 use std::ops::{Deref, DerefMut};
 
-use super::board::{Board, InvalidMoveError, Square};
+use super::board::{Board, InvalidMoveError, Square, BOARD_X};
 use super::piece::{Color, Piece};
 
 /**
@@ -20,6 +22,7 @@ pub trait ChessAction {
     fn to_algebraic_notation(&self, board: &Board) -> String;
     fn target_square(&self) -> usize;
     fn start_square(&self) -> usize;
+    fn double_forward(&self) -> Option<(usize, usize)>;
 }
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
@@ -151,6 +154,10 @@ impl ChessAction for Castle {
     fn start_square(&self) -> usize {
         self.king.start
     }
+
+    fn double_forward(&self) -> Option<(usize, usize)> {
+        None
+    }
 }
 
 impl ChessAction for Capture {
@@ -165,7 +172,7 @@ impl ChessAction for Capture {
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         board.move_piece(self.position.end, self.position.start)?;
         let piece_pos = self.en_passant_position.map(|position| {
-                board.en_passant_position = Some((self.position.end, position));
+                board.double_pawn_move = Some((self.position.end, position));
                 position
             }
         )
@@ -236,6 +243,10 @@ impl ChessAction for Capture {
     fn start_square(&self) -> usize {
         self.position.start
     }
+
+    fn double_forward(&self) -> Option<(usize, usize)> {
+        None
+    }
 }
 
 impl ChessAction for Move {
@@ -287,6 +298,13 @@ impl ChessAction for Move {
     fn start_square(&self) -> usize {
         self.start
     }
+
+    fn double_forward(&self) -> Option<(usize, usize)> {
+        if self.end.abs_diff(self.start) == 2 * BOARD_X {
+            return Some((self.start.average_floor(&self.end), self.end))
+        }          
+        None   
+    }
 }
 
 impl ChessAction for Promote {
@@ -318,6 +336,10 @@ impl ChessAction for Promote {
 
     fn start_square(&self) -> usize {
         self.previous_action.start_square()
+    }
+
+    fn double_forward(&self) -> Option<(usize, usize)> {
+        None
     }
 }
 
@@ -360,7 +382,7 @@ pub fn pawn_captures(from: usize, to: usize, color: &Color, board: &Board) -> Op
         if piece.get_color() != color {
            return Some(Box::new(Capture::new(Move::new(from ,to), None, None)))
         }
-    } else if let Some((ghost, pawn)) = board.en_passant_position {
+    } else if let Some((ghost, pawn)) = board.double_pawn_move {
         if ghost == to {
             return Some(Box::new(Capture::new(Move::new(from ,to), None, Some(pawn))))
         }
