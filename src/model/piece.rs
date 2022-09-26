@@ -1,16 +1,13 @@
 use crate::util::util;
 
 use super::actions;
-use super::actions::Move;
 use super::actions::MovesList;
 use super::board::Board;
 use super::board::Square;
 use super::board::BOARD_X;
 
 const KNIGHT_OFFSETS: [i32; 8] = [-21, -19, -12, -8, 8, 12, 19, 21];
-const DIAGONAL_OFFSET: [i32; 4] = [-11, -9, 9, 11];
-const LATERAL_OFFSET: [i32; 4] = [-10, -1, 1, 10];
-const KING_OFFSET: [i32; 8] = [-11, -10, -9, -1, 1, 9, 10, 11];
+const DIRECTION: [i32; 8] = [-10, -1, 1, 10, -11, -9, 9, 11];
 
 #[derive(PartialEq, Clone, Copy)]
 pub enum Color {
@@ -70,6 +67,7 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
             board,
         ));
     }
+    moves.append(&mut pawn_captures(position, color, board));
     return moves;
 }
 
@@ -77,84 +75,24 @@ fn pawn_captures(position: usize, color: &Color, board: &Board) -> MovesList {
     MovesList(Vec::new())
 }
 
-fn diagonal_moves(position: usize, piece: Piece, board: &Board) -> MovesList {
+fn moves_from_slice(position: usize, directions: &[i32], piece: &Piece, board: &Board) -> MovesList {
     let mut moves = MovesList(Vec::new());
-    for direction in DIAGONAL_OFFSET.iter() {
+    for direction in directions.iter() {
         moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position, *direction, true, &piece, board,
-        ))
-    }
-    return moves;
-}
-fn lateral_moves(position: usize, piece: Piece, board: &Board) -> MovesList {
-    let mut moves = MovesList(Vec::new());
-    for direction in LATERAL_OFFSET.iter() {
-        moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position, *direction, true, &piece, board,
-        ))
-    }
-    return moves;
-}
-
-fn knight_moves(position: usize, color: &Color, board: &Board) -> MovesList {
-    let mut moves = MovesList(Vec::new());
-    for direction in KNIGHT_OFFSETS.iter() {
-        moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position,
-            *direction,
-            false,
-            &Piece::Knight { color: *color },
-            board,
-        ))
-    }
-    return moves;
-}
-
-fn king_moves(position: usize, king: Piece, board: &Board) -> MovesList {
-    let mut moves = MovesList(Vec::new());
-    for direction in KING_OFFSET.iter() {
-        moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position, *direction, false, &king, board,
+            position, *direction, piece.is_sliding(), piece, board,
         ))
     }
     return moves;
 }
 
 impl Piece {
-    pub fn valid_moves(&self, position: usize, color: &Color, board: &Board) -> MovesList {
+    pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
         use Piece::*;
-        let moves = match self {
-            Pawn { color } => pawn_moves(position, color, board),
-            Bishop { color } => diagonal_moves(position, Bishop { color: *color }, board),
-            Knight { color } => knight_moves(position, color, board),
-            Rook { color, first_move } => lateral_moves(
-                position,
-                Rook {
-                    color: *color,
-                    first_move: *first_move,
-                },
-                board,
-            ),
-            Queen { color } => {
-                let mut lateral = lateral_moves(position, Queen { color: *color }, board);
-                lateral.append(&mut diagonal_moves(
-                    position,
-                    Queen { color: *color },
-                    board,
-                ));
-                lateral
-            }
-            King { color, first_move } => king_moves(
-                position,
-                King {
-                    color: *color,
-                    first_move: *first_move,
-                },
-                board,
-            ),
-        };
-
-        moves
+        if let  Pawn { color } = self {
+            pawn_moves(position, color, board)
+        } else {
+            moves_from_slice(position, self.get_direction(), self, board)
+        }
     }
 
     pub fn get_color(&self) -> &Color {
@@ -166,6 +104,28 @@ impl Piece {
             Rook { color, .. } => color,
             Queen { color } => color,
             King { color, .. } => color,
+        }
+    }
+
+    pub fn is_sliding(&self) -> bool {
+        match self {
+            Piece::Pawn { .. } => false,
+            Piece::Bishop { .. } => true,
+            Piece::Knight { .. } => false,
+            Piece::Rook { .. } => true,
+            Piece::Queen { .. } => true,
+            Piece::King { .. } => false,
+        }
+    }    
+    
+    pub fn get_direction(&self) -> &[i32] {
+        match self {
+            Piece::Pawn { .. } => panic!("The pawn is a special case"),
+            Piece::Bishop { .. } => &DIRECTION[4..8],
+            Piece::Knight { .. } => &KNIGHT_OFFSETS,
+            Piece::Rook { .. } => &DIRECTION[0..4],
+            Piece::Queen { .. } => &DIRECTION[0..8],
+            Piece::King { .. } => &DIRECTION[0..8],
         }
     }
 }

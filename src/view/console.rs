@@ -1,4 +1,3 @@
-use crate::model::actions::{ChessAction, MovesList};
 use crate::model::board::Square::*;
 use crate::model::board::{BOARD_SIZE, BOARD_X};
 use crate::model::{board::Board, piece::Color, piece::Piece};
