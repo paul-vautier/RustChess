@@ -1,7 +1,6 @@
 use crate::util::util;
 
 use super::actions;
-use super::actions::ChessAction;
 use super::actions::MovesList;
 use super::board::Board;
 use super::board::Square;
@@ -73,15 +72,24 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
     let take_left = util::add_usize(position, direction + 1);
 
     moves.extend(actions::pawn_captures(position, take_right, color, board));
-    moves.extend(actions::pawn_captures(position,take_left,  color, board));
+    moves.extend(actions::pawn_captures(position, take_left, color, board));
     return moves;
 }
 
-fn moves_from_slice(position: usize, directions: &[i32], piece: &Piece, board: &Board) -> MovesList {
+fn moves_from_slice(
+    position: usize,
+    directions: &[i32],
+    piece: &Piece,
+    board: &Board,
+) -> MovesList {
     let mut moves = MovesList(Vec::new());
     for direction in directions.iter() {
         moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position, *direction, piece.is_sliding(), piece, board,
+            position,
+            *direction,
+            piece.is_sliding(),
+            piece,
+            board,
         ))
     }
     return moves;
@@ -90,7 +98,7 @@ fn moves_from_slice(position: usize, directions: &[i32], piece: &Piece, board: &
 impl Piece {
     pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
         use Piece::*;
-        if let  Pawn { color } = self {
+        if let Pawn { color } = self {
             pawn_moves(position, color, board)
         } else {
             moves_from_slice(position, self.get_direction(), self, board)
@@ -118,8 +126,8 @@ impl Piece {
             Piece::Queen { .. } => true,
             Piece::King { .. } => false,
         }
-    }    
-    
+    }
+
     pub fn get_direction(&self) -> &[i32] {
         match self {
             Piece::Pawn { .. } => panic!("The pawn is a special case"),

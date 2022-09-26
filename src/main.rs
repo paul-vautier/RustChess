@@ -7,7 +7,7 @@ mod util;
 mod view;
 fn main() -> tetra::Result {
     let board = {
-        let this = Board::from_fen("rnbqkbnr/pppppppp/8/8/3BRp2/8/PPPPPPPP/RNBQKBNR".to_string());
+        let this = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR".to_string());
         match this {
             Ok(t) => t,
             Err(e) => panic!("Invalid board {}", e.err),
