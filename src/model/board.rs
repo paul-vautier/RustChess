@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 use tetra::math::num_integer::Average;
 
 
+use crate::util::util;
+
 use super::actions::ChessAction;
 use super::piece::Color;
 use super::piece::Piece;
@@ -51,6 +53,7 @@ pub struct Board {
     pub double_pawn_move : Option<(usize,usize)>, // (ghost, pawn)
     pub history : VecDeque<Box<dyn ChessAction>>, 
     pub turn : u32,
+    pub color: Color,
 }
 
 impl Board {
@@ -109,17 +112,14 @@ impl Board {
         if let Ok(()) = action.execute(self) {
             self.double_pawn_move = None;
             
-            self.turn+=1;
             match &mut self.mailbox[action.target_square()] {
                 Square::Inside(ref mut option) => match option.as_mut() {
                     Some(piece) => match piece {
                         Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
                         {
-                            println!("first move {}", first_move);
                             if *first_move > self.turn {
                                 *first_move = self.turn;
                             }
-                            println!("first move {}", first_move);
 
                         }
                         Piece::Pawn{color: _} => {
@@ -131,7 +131,8 @@ impl Board {
                 },
                 Square::Outside => (),
             }
-            self.history.push_back(action)
+            self.history.push_back(action);
+            self.turn+=1;
         }
     }
 
@@ -139,17 +140,15 @@ impl Board {
         match self.history.pop_back() {
             Some(mut action) => {
                 if let Ok(()) = action.undo(self) {
-                    self.turn-=1;
                     match &mut self.mailbox[action.start_square()] {
                         Square::Inside(ref mut option) => match option.as_mut() {
                             Some(piece) => match piece {
                                 Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
                                 {
-                                    println!("first move {}", first_move);
-                                    if *first_move > self.turn {
+                                    if *first_move >= self.turn - 1 {
+
                                         *first_move = u32::MAX;
                                     }
-                                    println!("first move {}", first_move);
                                 }
                                 _ => (),
                             }
@@ -157,17 +156,31 @@ impl Board {
                         },
                         Square::Outside => (),
                     };
+                    self.turn-=1;
+                    if let Some(action) = self.history.back() {
+                        if let Square::Inside(Some(piece)) = self.mailbox[action.target_square()] {
+                            if piece == (Piece::Pawn {color : *piece.get_color()}) {
+                                self.double_pawn_move = action.double_forward();
+                            }
+            
+                        }
+                    }
                 }
             },
             None => (),
         };
-        if let Some(action) = self.history.back() {
-            if let Square::Inside(Some(piece)) = self.mailbox[action.target_square()] {
-                if piece == (Piece::Pawn {color : *piece.get_color()}) {
-                    self.double_pawn_move = action.double_forward();
-                }
+    }
 
+    pub fn ray(&self, position: usize, direction : i32) -> Option<(usize, &Piece)> {
+        let mut position = util::add_usize(position, direction);
+        loop {
+            match self.mailbox[position] {
+                Square::Inside(ref option) => if let Some(piece) = option {
+                    return Some((position, piece))
+                },
+                Square::Outside => return None,
             }
+            position = util::add_usize(position, direction);
         }
     }
 
@@ -300,6 +313,6 @@ impl Board {
             index += 1;
         }
 
-        Ok(Board { mailbox , double_pawn_move: None, history: VecDeque::new(), turn: 0})
+        Ok(Board { mailbox , double_pawn_move: None, history: VecDeque::new(), turn: 1, color: Color::WHITE})
     }
 }

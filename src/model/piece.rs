@@ -32,6 +32,12 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
         Color::BLACK => 1,
     } * BOARD_X as i32;
 
+    let take_right = util::add_usize(position, direction - 1);
+    let take_left = util::add_usize(position, direction + 1);
+
+    moves.extend(actions::pawn_captures(position, take_right, color, board));
+    moves.extend(actions::pawn_captures(position, take_left, color, board));
+
     // Push one square
     if let Square::Inside(option) =
         board.piece_at_mailbox_index(util::add_usize(position, direction))
@@ -68,11 +74,6 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
         ));
     }
 
-    let take_right = util::add_usize(position, direction - 1);
-    let take_left = util::add_usize(position, direction + 1);
-
-    moves.extend(actions::pawn_captures(position, take_right, color, board));
-    moves.extend(actions::pawn_captures(position, take_left, color, board));
     return moves;
 }
 
@@ -98,10 +99,16 @@ fn moves_from_slice(
 impl Piece {
     pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
         use Piece::*;
-        if let Pawn { color } = self {
-            pawn_moves(position, color, board)
-        } else {
-            moves_from_slice(position, self.get_direction(), self, board)
+        let mut moves = MovesList(Vec::new());
+        match self {
+            Pawn { color } => pawn_moves(position, color, board),
+            piece => {
+                moves.append(&mut moves_from_slice(position, self.get_direction(), self, board));
+                if let Piece::King { color: _, first_move: _ } = piece{
+                    moves.append(&mut actions::castles(position, self, board))   
+                }
+                moves
+            }
         }
     }
 

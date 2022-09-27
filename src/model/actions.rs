@@ -4,6 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 use super::board::{Board, InvalidMoveError, Square};
 use super::chess_actions::capture::Capture;
+use super::chess_actions::castle::Castle;
 use super::chess_actions::movement::Move;
 use super::piece::{Color, Piece};
 
@@ -109,6 +110,47 @@ pub fn pawn_captures(
         }
     }
     None
+}
+
+/**
+ * Trangression : we should check that the rook and king are on the last row
+ */
+pub fn castles(
+    king_position: usize,
+    piece: &Piece,
+    board: &Board,
+) -> MovesList {
+    if let Piece::King{ color: _, first_move } = piece {
+        if *first_move != u32::MAX {
+            return MovesList(Vec::new());
+        }
+        let mut moves = MovesList(Vec::new());
+        if let Some((pos, Piece::Rook { color: _, first_move })) = board.ray(king_position, -1) {
+            if *first_move == u32::MAX {
+                moves.push(
+                    Box::new(Castle::new(
+                        Move::new(king_position, king_position - 2),
+                        Move::new(pos, king_position - 1)
+                    ))
+                )
+            }
+        }        
+        if let Some((pos, Piece::Rook { color: _, first_move })) = board.ray(king_position, 1) {
+            if *first_move == u32::MAX {
+                moves.push(
+                    Box::new(Castle::new(
+                        Move::new(king_position, king_position + 2),
+                        Move::new(pos, king_position + 1)
+                    ))
+                )
+            }
+        }
+
+        return moves;
+        
+    } else {
+        return MovesList(Vec::new());
+    }
 }
 
 fn to_promotion(
