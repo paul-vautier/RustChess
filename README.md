@@ -2,7 +2,7 @@
 
 This project was made with the intent of learning Rust. 
 
-It features a playable chess game and a Chess engine
+It features a playable chess game and a Chess engine. The engine current goal initially was not about performances (i.e. using [bitboards](https://www.chessprogramming.org/Bitboards)), but about learning how to right an idiomatic rust application.
 
 ## File structure 
 ```
