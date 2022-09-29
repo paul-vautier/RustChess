@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use tetra::math::num_integer::Average;
 
-
 use crate::util::util;
 
 use super::actions::ChessAction;
@@ -31,17 +30,15 @@ pub struct InvalidBoardErr {
 }
 
 pub struct InvalidMoveError {
-    pub start : usize,
-    pub end : usize,
-    pub reason : String,
+    pub start: usize,
+    pub end: usize,
+    pub reason: String,
 }
 
 pub struct InvalidRemovalError {
     pub position: usize,
-    pub reason : String,
+    pub reason: String,
 }
-
-
 
 pub enum Square {
     Inside(Option<Piece>),
@@ -50,10 +47,9 @@ pub enum Square {
 
 pub struct Board {
     pub mailbox: [Square; BOARD_SIZE],
-    pub double_pawn_move : Option<(usize,usize)>, // (ghost, pawn)
-    pub history : VecDeque<Box<dyn ChessAction>>, 
-    pub turn : u32,
-    pub color: Color,
+    pub double_pawn_move: Option<(usize, usize)>, // (ghost, pawn)
+    pub history: VecDeque<Box<dyn ChessAction>>,
+    pub turn: u32,
 }
 
 impl Board {
@@ -74,57 +70,81 @@ impl Board {
         &self.mailbox[position]
     }
 
-    pub fn move_piece(&mut self, start: usize, end: usize) -> Result<Option<Piece>, InvalidMoveError> {
-        let current = match self.remove_piece(start){
+    pub fn move_piece(
+        &mut self,
+        start: usize,
+        end: usize,
+    ) -> Result<Option<Piece>, InvalidMoveError> {
+        let current = match self.remove_piece(start) {
             Some(piece) => piece,
-            None => return Err(InvalidMoveError{start, end, reason : "start is empty".to_string()}),
+            None => {
+                return Err(InvalidMoveError {
+                    start,
+                    end,
+                    reason: "start is empty".to_string(),
+                })
+            }
         };
 
         let mut option = self.remove_piece(end);
-        self.remove_piece(start); 
+        self.remove_piece(start);
 
-        self.add_piece(end, current).map_err(|removal| InvalidMoveError{start, end, reason: removal.reason})?;
+        self.add_piece(end, current)
+            .map_err(|removal| InvalidMoveError {
+                start,
+                end,
+                reason: removal.reason,
+            })?;
 
         Ok(option)
     }
 
-    pub fn remove_piece(&mut self, position : usize) -> Option<Piece>{
+    pub fn remove_piece(&mut self, position: usize) -> Option<Piece> {
         match &mut self.mailbox[position] {
             Square::Inside(option) => option.take(),
             Square::Outside => None,
         }
-    }    
-    
-    pub fn add_piece(&mut self, position : usize, piece: Piece) -> Result<(), InvalidRemovalError>{
+    }
+
+    pub fn add_piece(&mut self, position: usize, piece: Piece) -> Result<(), InvalidRemovalError> {
         match &mut self.mailbox[position] {
             Square::Inside(option) => {
                 if option.is_some() {
-                    return Err(InvalidRemovalError{position, reason: "cannot add a piece to a non empty square".to_string()})
+                    return Err(InvalidRemovalError {
+                        position,
+                        reason: "cannot add a piece to a non empty square".to_string(),
+                    });
                 }
                 *option = Some(piece);
                 Ok(())
-            },
-            Square::Outside => Err(InvalidRemovalError{position, reason: "cannot add a piece outside the board".to_string()}),
+            }
+            Square::Outside => Err(InvalidRemovalError {
+                position,
+                reason: "cannot add a piece outside the board".to_string(),
+            }),
         }
     }
 
-    pub fn do_move(&mut self, mut action : Box<dyn ChessAction>) {
+    pub fn do_move(&mut self, mut action: Box<dyn ChessAction>) {
         if let Ok(()) = action.execute(self) {
             self.double_pawn_move = None;
-            
+
             match &mut self.mailbox[action.target_square()] {
                 Square::Inside(ref mut option) => match option.as_mut() {
                     Some(piece) => match piece {
-                        Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
-                        {
+                        Piece::Rook {
+                            color: _,
+                            first_move,
+                        }
+                        | Piece::King {
+                            color: _,
+                            first_move,
+                        } => {
                             if *first_move > self.turn {
                                 *first_move = self.turn;
                             }
-
                         }
-                        Piece::Pawn{color: _} => {
-                            self.double_pawn_move = action.double_forward()             
-                        }
+                        Piece::Pawn { color: _ } => self.double_pawn_move = action.double_forward(),
                         _ => (),
                     },
                     None => (),
@@ -132,7 +152,7 @@ impl Board {
                 Square::Outside => (),
             }
             self.history.push_back(action);
-            self.turn+=1;
+            self.turn += 1;
         }
     }
 
@@ -143,41 +163,51 @@ impl Board {
                     match &mut self.mailbox[action.start_square()] {
                         Square::Inside(ref mut option) => match option.as_mut() {
                             Some(piece) => match piece {
-                                Piece::Rook { color: _, first_move } |  Piece::King { color: _, first_move } => 
-                                {
+                                Piece::Rook {
+                                    color: _,
+                                    first_move,
+                                }
+                                | Piece::King {
+                                    color: _,
+                                    first_move,
+                                } => {
                                     if *first_move >= self.turn - 1 {
-
                                         *first_move = u32::MAX;
                                     }
                                 }
                                 _ => (),
-                            }
+                            },
                             None => (),
                         },
                         Square::Outside => (),
                     };
-                    self.turn-=1;
+                    self.turn -= 1;
                     if let Some(action) = self.history.back() {
                         if let Square::Inside(Some(piece)) = self.mailbox[action.target_square()] {
-                            if piece == (Piece::Pawn {color : *piece.get_color()}) {
+                            if piece
+                                == (Piece::Pawn {
+                                    color: *piece.get_color(),
+                                })
+                            {
                                 self.double_pawn_move = action.double_forward();
                             }
-            
                         }
                     }
                 }
-            },
+            }
             None => (),
         };
     }
 
-    pub fn ray(&self, position: usize, direction : i32) -> Option<(usize, &Piece)> {
+    pub fn ray(&self, position: usize, direction: i32) -> Option<(usize, &Piece)> {
         let mut position = util::add_usize(position, direction);
         loop {
             match self.mailbox[position] {
-                Square::Inside(ref option) => if let Some(piece) = option {
-                    return Some((position, piece))
-                },
+                Square::Inside(ref option) => {
+                    if let Some(piece) = option {
+                        return Some((position, piece));
+                    }
+                }
                 Square::Outside => return None,
             }
             position = util::add_usize(position, direction);
@@ -191,17 +221,18 @@ impl Board {
         &mut self.mailbox[position]
     }
 
-    pub fn promote_flag(color: &Color) -> usize {
-        match color {
-            Color::WHITE => BLACK_ROW,
-            Color::BLACK => WHITE_ROW,
-        }
-    }
-
     pub fn is_on_promote_flag(color: &Color, index: usize) -> bool {
         match color {
             Color::WHITE => index / BOARD_X == BLACK_ROW,
             Color::BLACK => index / BOARD_X == WHITE_ROW,
+        }
+    }
+
+    pub fn color_turn(&self) -> Color {
+        if self.turn & 1 == 0 {
+            Color::BLACK
+        } else {
+            Color::WHITE
         }
     }
 
@@ -237,13 +268,38 @@ impl Board {
         let mut mailbox = [(); BOARD_SIZE].map(|_| Outside);
         let mut offset: usize = 2 * BOARD_X + 1;
         let mut index: usize = offset;
-
+        let mut white_king = None;
+        let mut black_king = None;
         use Square::*;
         for (i, c) in notation.chars().into_iter().enumerate() {
             match c.to_lowercase().next() {
                 Some(current) => match current {
                     // TODO : VERIFY KING MOVED
                     'k' => {
+                        let color = Board::get_color_fen(c);
+
+                        match color {
+                            Color::WHITE => {
+                                if let None = white_king {
+                                    white_king = Some(index)
+                                } else {
+                                    return Err(InvalidBoardErr {
+                                        err: "Multiple black kings where found on the board"
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                            Color::BLACK => {
+                                if let None = black_king {
+                                    black_king = Some(index)
+                                } else {
+                                    return Err(InvalidBoardErr {
+                                        err: "Multiple black kings where found on the board"
+                                            .to_string(),
+                                    });
+                                }
+                            }
+                        }
                         mailbox[index] = Inside(Some(Piece::King {
                             color: Board::get_color_fen(c),
                             first_move: u32::MAX,
@@ -313,6 +369,11 @@ impl Board {
             index += 1;
         }
 
-        Ok(Board { mailbox , double_pawn_move: None, history: VecDeque::new(), turn: 1, color: Color::WHITE})
+        Ok(Board {
+            mailbox,
+            double_pawn_move: None,
+            history: VecDeque::new(),
+            turn: 1,
+        })
     }
 }

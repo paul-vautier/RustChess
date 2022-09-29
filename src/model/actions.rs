@@ -28,6 +28,17 @@ pub trait ChessAction {
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
 
+pub struct Pin {
+    position: usize,
+    restricting_axis: i32,
+}
+
+pub struct BoardAttackData {
+    pub white_king: usize,
+    pub black_king: usize,
+    pins: Vec<Pin>,
+}
+
 impl MovesList {
     pub fn to_algebraic_notation(&self, board: &Board) -> String {
         let mut result = String::from("");
@@ -55,7 +66,7 @@ impl DerefMut for MovesList {
         &mut self.0
     }
 }
-
+pub fn generates_moves(board: &Board) {}
 pub fn get_moves_for_piece_and_direction(
     start: usize,
     direction: i32,
@@ -115,39 +126,48 @@ pub fn pawn_captures(
 /**
  * Trangression : we should check that the rook and king are on the last row
  */
-pub fn castles(
-    king_position: usize,
-    piece: &Piece,
-    board: &Board,
-) -> MovesList {
-    if let Piece::King{ color: _, first_move } = piece {
+pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList {
+    if let Piece::King {
+        color: _,
+        first_move,
+    } = piece
+    {
         if *first_move != u32::MAX {
             return MovesList(Vec::new());
         }
         let mut moves = MovesList(Vec::new());
-        if let Some((pos, Piece::Rook { color: _, first_move })) = board.ray(king_position, -1) {
+        if let Some((
+            pos,
+            Piece::Rook {
+                color: _,
+                first_move,
+            },
+        )) = board.ray(king_position, -1)
+        {
             if *first_move == u32::MAX {
-                moves.push(
-                    Box::new(Castle::new(
-                        Move::new(king_position, king_position - 2),
-                        Move::new(pos, king_position - 1)
-                    ))
-                )
+                moves.push(Box::new(Castle::new(
+                    Move::new(king_position, king_position - 2),
+                    Move::new(pos, king_position - 1),
+                )))
             }
-        }        
-        if let Some((pos, Piece::Rook { color: _, first_move })) = board.ray(king_position, 1) {
+        }
+        if let Some((
+            pos,
+            Piece::Rook {
+                color: _,
+                first_move,
+            },
+        )) = board.ray(king_position, 1)
+        {
             if *first_move == u32::MAX {
-                moves.push(
-                    Box::new(Castle::new(
-                        Move::new(king_position, king_position + 2),
-                        Move::new(pos, king_position + 1)
-                    ))
-                )
+                moves.push(Box::new(Castle::new(
+                    Move::new(king_position, king_position + 2),
+                    Move::new(pos, king_position + 1),
+                )))
             }
         }
 
         return moves;
-        
     } else {
         return MovesList(Vec::new());
     }

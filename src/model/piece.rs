@@ -100,12 +100,24 @@ impl Piece {
     pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
         use Piece::*;
         let mut moves = MovesList(Vec::new());
+        if *self.get_color() != board.color_turn() {
+            return moves;
+        }
         match self {
             Pawn { color } => pawn_moves(position, color, board),
             piece => {
-                moves.append(&mut moves_from_slice(position, self.get_direction(), self, board));
-                if let Piece::King { color: _, first_move: _ } = piece{
-                    moves.append(&mut actions::castles(position, self, board))   
+                moves.append(&mut moves_from_slice(
+                    position,
+                    self.get_direction(),
+                    self,
+                    board,
+                ));
+                if let Piece::King {
+                    color: _,
+                    first_move: _,
+                } = piece
+                {
+                    moves.append(&mut actions::castles(position, self, board))
                 }
                 moves
             }
