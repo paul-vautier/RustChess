@@ -17,15 +17,15 @@ impl Castle {
 impl ChessAction for Castle {
     
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
-        board.move_piece(self.king.start, self.king.end);
-        board.move_piece(self.rook.start, self.rook.end);
+        board.move_piece(self.king.start, self.king.end)?;
+        board.move_piece(self.rook.start, self.rook.end)?;
 
         Ok(())
     }
 
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
-        board.move_piece(self.king.end, self.king.start);
-        board.move_piece(self.rook.end, self.rook.start);
+        board.move_piece(self.king.end, self.king.start)?;
+        board.move_piece(self.rook.end, self.rook.start)?;
 
         Ok(())
     }

@@ -1,9 +1,10 @@
 use std::collections::VecDeque;
-use tetra::math::num_integer::Average;
+
 
 use crate::util::util;
 
 use super::actions::ChessAction;
+
 use super::piece::Color;
 use super::piece::Piece;
 
@@ -50,9 +51,33 @@ pub struct Board {
     pub double_pawn_move: Option<(usize, usize)>, // (ghost, pawn)
     pub history: VecDeque<Box<dyn ChessAction>>,
     pub turn: u32,
+    pub white_king: usize,
+    pub black_king: usize,
+}
+pub struct BoardIterator<'a> {
+    pub index : usize,
+    pub board: &'a Board
 }
 
+impl Iterator for BoardIterator<'_> {
+    type Item = (usize, Option<Piece>);
+    fn next(&mut self) -> Option<(usize, Option<Piece>)> {
+        if self.index >= 64 {
+            return None
+        }
+        let result = match self.board.mailbox[TO_MAILBOX[self.index]] {
+            Square::Inside(option) => option,
+            Square::Outside => panic!("Invalid board"),
+        };
+        self.index += 1;
+        Some((TO_MAILBOX[self.index - 1],result))
+    }
+
+}
 impl Board {
+    pub fn iter(&self) -> BoardIterator {
+        BoardIterator { index: 0, board: self }
+    }
     /**
      * Position on the actual board, from 0 to 64
      */
@@ -86,7 +111,7 @@ impl Board {
             }
         };
 
-        let mut option = self.remove_piece(end);
+        let option = self.remove_piece(end);
         self.remove_piece(start);
 
         self.add_piece(end, current)
@@ -125,6 +150,13 @@ impl Board {
         }
     }
 
+    pub fn get_king_by_color(&self, color: &Color) -> usize{
+        match color {
+            Color::WHITE => self.white_king,
+            Color::BLACK => self.black_king,
+        }
+    }
+
     pub fn do_move(&mut self, mut action: Box<dyn ChessAction>) {
         if let Ok(()) = action.execute(self) {
             self.double_pawn_move = None;
@@ -135,15 +167,26 @@ impl Board {
                         Piece::Rook {
                             color: _,
                             first_move,
-                        }
-                        | Piece::King {
-                            color: _,
+                        } => {
+                            if *first_move >= self.turn - 1 {
+                                *first_move = u32::MAX;
+                            }
+                            
+                        },
+                        Piece::King {
+                            color: color,
                             first_move,
                         } => {
-                            if *first_move > self.turn {
-                                *first_move = self.turn;
+                            if *first_move >= self.turn - 1 {
+                                *first_move = u32::MAX;
                             }
-                        }
+
+                            match color {
+                                Color::WHITE => self.white_king = action.target_square(),
+                                Color::BLACK => self.black_king = action.target_square(),
+                            }
+                            
+                        },
                         Piece::Pawn { color: _ } => self.double_pawn_move = action.double_forward(),
                         _ => (),
                     },
@@ -166,15 +209,26 @@ impl Board {
                                 Piece::Rook {
                                     color: _,
                                     first_move,
-                                }
-                                | Piece::King {
-                                    color: _,
+                                } => {
+                                    if *first_move >= self.turn - 1 {
+                                        *first_move = u32::MAX;
+                                    }
+                                    
+                                },
+                                Piece::King {
+                                    color: color,
                                     first_move,
                                 } => {
                                     if *first_move >= self.turn - 1 {
                                         *first_move = u32::MAX;
                                     }
-                                }
+                                    
+                                    match color {
+                                        Color::WHITE => self.white_king = action.start_square(),
+                                        Color::BLACK => self.black_king = action.start_square(),
+                                    }
+                                    
+                                },
                                 _ => (),
                             },
                             None => (),
@@ -264,6 +318,7 @@ impl Board {
             _ => 'x',
         }
     }
+
     pub fn from_fen(notation: String) -> Result<Board, InvalidBoardErr> {
         let mut mailbox = [(); BOARD_SIZE].map(|_| Outside);
         let mut offset: usize = 2 * BOARD_X + 1;
@@ -374,6 +429,8 @@ impl Board {
             double_pawn_move: None,
             history: VecDeque::new(),
             turn: 1,
+            white_king: white_king.unwrap(), 
+            black_king: black_king.unwrap()
         })
     }
 }

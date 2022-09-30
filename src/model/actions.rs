@@ -6,7 +6,7 @@ use super::board::{Board, InvalidMoveError, Square};
 use super::chess_actions::capture::Capture;
 use super::chess_actions::castle::Castle;
 use super::chess_actions::movement::Move;
-use super::piece::{Color, Piece};
+use super::piece::{Color, Piece, self};
 
 /**
  * Command pattern :
@@ -37,6 +37,7 @@ pub struct BoardAttackData {
     pub white_king: usize,
     pub black_king: usize,
     pins: Vec<Pin>,
+    resolve_check: Vec<usize>,
 }
 
 impl MovesList {
@@ -66,7 +67,72 @@ impl DerefMut for MovesList {
         &mut self.0
     }
 }
-pub fn generates_moves(board: &Board) {}
+
+pub fn can_king_move(board: &Board, king_color: &Color, position: usize) -> bool {
+    for direction in piece::DIRECTIONS {
+        if let Some((hit, piece)) = board.ray(position, direction) {
+            if *piece.get_color() != *king_color && 
+            ((piece.is_sliding() && piece.has_direction(-direction)) || piece.get_attack_direction().contains(&((position-hit) as i32)))    {
+                return false;
+            }
+        }
+    }
+    for direction in piece::KNIGHT_OFFSETS {
+        if let Inside(Some(Piece::Knight { color})) = board.piece_at_mailbox_index(util::add_usize(position, direction)) {
+            if color != king_color {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+pub fn generates_moves(board: &Board) -> MovesList {
+    let mut moves = MovesList(Vec::new());
+    let playing_color = board.color_turn();
+    let king_position = board.get_king_by_color(&playing_color);
+    let pins : Vec<usize> = vec![];
+    let mut double_check = false;
+    for direction in piece::DIRECTIONS {
+        if let Some((position, piece)) = board.ray(king_position, direction) {
+            if *piece.get_color() == playing_color {
+                // If potential pin, sadly we can't combine condition as if let && are still unstable 
+                if let Some((pos, behind)) = board.ray(position, direction) {
+                    // Pinned
+                    if *behind.get_color() != playing_color && piece.is_sliding() && piece.has_direction(-direction) {
+                        
+                    } 
+                }
+            } else {
+                // King in check
+                if piece.is_sliding() && piece.has_direction(-direction) {
+                    if !pins.is_empty() {
+                        double_check = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // King must move
+    if double_check {
+        if let Inside(Some(piece @Piece::King{ color: _, first_move: _ })) = board.piece_at_mailbox_index(king_position) {
+            return piece.valid_moves(king_position, board)
+        } else {
+            panic!("invalid king position")
+        }
+    }
+
+    for (index, piece) in board.iter() {
+        match piece {
+            Some(piece) => moves.append(&mut piece.valid_moves(index, board)),
+            None => (),
+        }
+    }
+
+    moves
+}
 pub fn get_moves_for_piece_and_direction(
     start: usize,
     direction: i32,

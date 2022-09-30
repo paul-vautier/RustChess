@@ -1,6 +1,6 @@
 use std::{
     ops::{Deref, DerefMut},
-    path::Path,
+    path::Path, thread::current,
 };
 
 use tetra::{
@@ -11,7 +11,7 @@ use tetra::{
 };
 
 use crate::model::{
-    actions::{ChessAction},
+    actions::{ChessAction, self},
     board::{Board, Square, TO_BOARD, TO_MAILBOX},
     piece::{self, Color, Piece},
 };
@@ -102,11 +102,11 @@ impl TetraState {
             return;
         }
         let position = x + 8 * y;
-        if let Some(piece) = self.board.piece_at_board_index(position) {
+        if let Some(_) = self.board.piece_at_board_index(position) {
             self.selected_piece = Some(position);
-            self.valid_squares = piece
-                .valid_moves(TO_MAILBOX[position], &self.board)
+            self.valid_squares = actions::generates_moves(&self.board)
                 .iter()
+                .filter(|current_move| current_move.start_square() == TO_MAILBOX[position])
                 .map(Box::as_ref)
                 .map(ChessAction::target_square)
                 .map(|index| TO_BOARD[index] as usize)
