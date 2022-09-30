@@ -1,4 +1,4 @@
-use crate::model::board::Square::*;
+use crate::model::board::{Square::*, TO_BOARD};
 use crate::util::util;
 use std::ops::{Deref, DerefMut};
 
@@ -6,7 +6,7 @@ use super::board::{Board, InvalidMoveError, Square};
 use super::chess_actions::capture::Capture;
 use super::chess_actions::castle::Castle;
 use super::chess_actions::movement::Move;
-use super::piece::{Color, Piece, self};
+use super::piece::{self, Color, Piece};
 
 /**
  * Command pattern :
@@ -68,22 +68,42 @@ impl DerefMut for MovesList {
     }
 }
 
-pub fn can_king_move(board: &Board, king_color: &Color, position: usize) -> bool {
+pub fn can_king_move(
+    board: &Board,
+    king_color: &Color,
+    king_position: usize,
+    direction: i32,
+) -> bool {
+    if direction + (king_position as i32) < 0 {
+        return false;
+    }
+    let position = util::add_usize(king_position, direction);
+    if !board.is_inside(position) {
+        return false;
+    }
     for direction in piece::DIRECTIONS {
         if let Some((hit, piece)) = board.ray(position, direction) {
-            if *piece.get_color() != *king_color && 
-            ((piece.is_sliding() && piece.has_direction(-direction)) || piece.get_attack_direction().contains(&((position-hit) as i32)))    {
+            if piece.get_color() != king_color
+                && ((piece.is_sliding() && piece.has_direction(-direction))
+                    || piece
+                        .get_attack_direction()
+                        .contains(&(position as i32 - hit as i32)))
+            {
                 return false;
             }
         }
     }
+
     for direction in piece::KNIGHT_OFFSETS {
-        if let Inside(Some(Piece::Knight { color})) = board.piece_at_mailbox_index(util::add_usize(position, direction)) {
+        if let Inside(Some(Piece::Knight { color })) =
+            board.piece_at_mailbox_index(util::add_usize(position, direction))
+        {
             if color != king_color {
                 return false;
             }
         }
     }
+
     true
 }
 
@@ -91,22 +111,25 @@ pub fn generates_moves(board: &Board) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let playing_color = board.color_turn();
     let king_position = board.get_king_by_color(&playing_color);
-    let pins : Vec<usize> = vec![];
+    let pins: Vec<usize> = vec![];
+    let resolve_check: Vec<usize> = vec![];
+
     let mut double_check = false;
     for direction in piece::DIRECTIONS {
         if let Some((position, piece)) = board.ray(king_position, direction) {
             if *piece.get_color() == playing_color {
-                // If potential pin, sadly we can't combine condition as if let && are still unstable 
+                // If potential pin, sadly we can't combine condition as if let && are still unstable
                 if let Some((pos, behind)) = board.ray(position, direction) {
                     // Pinned
-                    if *behind.get_color() != playing_color && piece.is_sliding() && piece.has_direction(-direction) {
-                        
-                    } 
+                    if *behind.get_color() != playing_color
+                        && piece.is_sliding()
+                        && piece.has_direction(-direction)
+                    {}
                 }
             } else {
                 // King in check
                 if piece.is_sliding() && piece.has_direction(-direction) {
-                    if !pins.is_empty() {
+                    if !resolve_check.is_empty() {
                         double_check = true;
                         break;
                     }
@@ -117,8 +140,14 @@ pub fn generates_moves(board: &Board) -> MovesList {
 
     // King must move
     if double_check {
-        if let Inside(Some(piece @Piece::King{ color: _, first_move: _ })) = board.piece_at_mailbox_index(king_position) {
-            return piece.valid_moves(king_position, board)
+        if let Inside(Some(
+            piece @ Piece::King {
+                color: _,
+                first_move: _,
+            },
+        )) = board.piece_at_mailbox_index(king_position)
+        {
+            return piece.valid_moves(king_position, board);
         } else {
             panic!("invalid king position")
         }

@@ -107,22 +107,20 @@ impl Piece {
         }
         match self {
             Pawn { color } => pawn_moves(position, color, board),
-            King {color , first_move : _} => {
+            King {
+                color,
+                first_move: _,
+            } => {
                 for direction in DIRECTIONS {
-                    if actions::can_king_move(board, color, util::add_usize(position, direction)) {
-                        moves.append(&mut actions::get_moves_for_piece_and_direction(position, direction, false, self, board))
+                    if actions::can_king_move(board, color, position, direction) {
+                        moves.append(&mut actions::get_moves_for_piece_and_direction(
+                            position, direction, false, self, board,
+                        ))
                     }
                 }
                 actions::castles(position, self, board)
-            },
-            _ => {
-                moves_from_slice(
-                    position,
-                    self.get_direction(),
-                    self,
-                    board,
-                )
             }
+            _ => moves_from_slice(position, self.get_direction(), self, board),
         }
     }
 
@@ -162,11 +160,9 @@ impl Piece {
 
     pub fn get_attack_direction(&self) -> &[i32] {
         match self {
-            Piece::Pawn { color } => {
-                match color {
-                    Color::WHITE => &WHITE_PAWN,
-                    Color::BLACK => &BLACK_PAWN,
-                }
+            Piece::Pawn { color } => match color {
+                Color::WHITE => &WHITE_PAWN,
+                Color::BLACK => &BLACK_PAWN,
             },
             Piece::Bishop { .. } => &DIRECTIONS[4..8],
             Piece::Knight { .. } => &KNIGHT_OFFSETS,
@@ -175,8 +171,8 @@ impl Piece {
             Piece::King { .. } => &DIRECTIONS[0..8],
         }
     }
-    
-    pub fn has_direction(&self, direction: i32) -> bool{
+
+    pub fn has_direction(&self, direction: i32) -> bool {
         self.get_direction().contains(&direction)
     }
 }

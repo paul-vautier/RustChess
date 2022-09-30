@@ -1,6 +1,5 @@
 use std::collections::VecDeque;
 
-
 use crate::util::util;
 
 use super::actions::ChessAction;
@@ -55,28 +54,34 @@ pub struct Board {
     pub black_king: usize,
 }
 pub struct BoardIterator<'a> {
-    pub index : usize,
-    pub board: &'a Board
+    pub index: usize,
+    pub board: &'a Board,
 }
 
 impl Iterator for BoardIterator<'_> {
     type Item = (usize, Option<Piece>);
     fn next(&mut self) -> Option<(usize, Option<Piece>)> {
         if self.index >= 64 {
-            return None
+            return None;
         }
         let result = match self.board.mailbox[TO_MAILBOX[self.index]] {
             Square::Inside(option) => option,
             Square::Outside => panic!("Invalid board"),
         };
         self.index += 1;
-        Some((TO_MAILBOX[self.index - 1],result))
+        Some((TO_MAILBOX[self.index - 1], result))
     }
-
 }
 impl Board {
     pub fn iter(&self) -> BoardIterator {
-        BoardIterator { index: 0, board: self }
+        BoardIterator {
+            index: 0,
+            board: self,
+        }
+    }
+
+    pub fn is_inside(&self, position: usize) -> bool {
+        TO_BOARD[position] != -1
     }
     /**
      * Position on the actual board, from 0 to 64
@@ -150,7 +155,7 @@ impl Board {
         }
     }
 
-    pub fn get_king_by_color(&self, color: &Color) -> usize{
+    pub fn get_king_by_color(&self, color: &Color) -> usize {
         match color {
             Color::WHITE => self.white_king,
             Color::BLACK => self.black_king,
@@ -171,8 +176,7 @@ impl Board {
                             if *first_move >= self.turn - 1 {
                                 *first_move = u32::MAX;
                             }
-                            
-                        },
+                        }
                         Piece::King {
                             color: color,
                             first_move,
@@ -185,8 +189,7 @@ impl Board {
                                 Color::WHITE => self.white_king = action.target_square(),
                                 Color::BLACK => self.black_king = action.target_square(),
                             }
-                            
-                        },
+                        }
                         Piece::Pawn { color: _ } => self.double_pawn_move = action.double_forward(),
                         _ => (),
                     },
@@ -213,8 +216,7 @@ impl Board {
                                     if *first_move >= self.turn - 1 {
                                         *first_move = u32::MAX;
                                     }
-                                    
-                                },
+                                }
                                 Piece::King {
                                     color: color,
                                     first_move,
@@ -222,13 +224,12 @@ impl Board {
                                     if *first_move >= self.turn - 1 {
                                         *first_move = u32::MAX;
                                     }
-                                    
+
                                     match color {
                                         Color::WHITE => self.white_king = action.start_square(),
                                         Color::BLACK => self.black_king = action.start_square(),
                                     }
-                                    
-                                },
+                                }
                                 _ => (),
                             },
                             None => (),
@@ -429,8 +430,8 @@ impl Board {
             double_pawn_move: None,
             history: VecDeque::new(),
             turn: 1,
-            white_king: white_king.unwrap(), 
-            black_king: black_king.unwrap()
+            white_king: white_king.unwrap(),
+            black_king: black_king.unwrap(),
         })
     }
 }
