@@ -1,13 +1,13 @@
 use std::{
     ops::{Deref, DerefMut},
-    path::Path, thread::current,
+    path::Path, thread::current, cmp::{min_by, self},
 };
 
 use tetra::{
     graphics::{self, mesh::Mesh, DrawParams, Rectangle, Texture},
     input::{self, MouseButton, Key},
     math::Vec2,
-    Context, State, TetraError,
+    Context, State, TetraError, window,
 };
 
 use crate::model::{
@@ -15,12 +15,8 @@ use crate::model::{
     board::{Board, Square, TO_BOARD, TO_MAILBOX},
     piece::{self, Color, Piece},
 };
-const PAWN_OFFSET: f32 = 22.0;
-const QUEEN_OFFSET: f32 = 2.0;
-const KNIGHT_OFFSET: f32 = 17.0;
-const BISHOP_OFFSET: f32 = 11.0;
-const ROOK_OFFSET: f32 = 17.0;
-pub const SQUARE_SIZE: f32 = 150.0;
+const PIECE_TO_SQUARE_RATIO: f32 = 0.9;
+pub const SQUARE_SIZE: f32 = 100.0;
 
 struct PiecesAsset {
     king: Texture,
@@ -31,6 +27,21 @@ struct PiecesAsset {
     knight: Texture,
 }
 
+fn draw_resize(ctx: &mut Context, texture: &Texture, x : f32, y: f32) {
+    let (width, height) = texture.size();
+    let max = cmp::max(width, height) as f32;
+
+    let width = width as f32;
+    let height = height as f32;
+
+    let ratio = PIECE_TO_SQUARE_RATIO * SQUARE_SIZE / max as f32;
+
+    let drawn_x = ratio * width;
+    let drawn_y = ratio * height;
+    texture.draw(ctx, DrawParams::new()
+            .position(Vec2::new(x + (SQUARE_SIZE - drawn_x) / 2.0, y + (SQUARE_SIZE - drawn_y) / 2.0))
+            .scale(Vec2::new(ratio, ratio)));
+}
 impl PiecesAsset {
     pub fn load(ctx: &mut Context, folder: &Path) -> tetra::Result<PiecesAsset> {
         Ok(PiecesAsset {
@@ -178,14 +189,14 @@ impl TetraState {
         DisplayableBoard { board }
     }
 
-    fn piece_to_texture(&self, piece: &Piece) -> (&Texture, f32) {
+    fn piece_to_texture(&self, piece: &Piece) -> &Texture{
         match piece {
-            Piece::Pawn { color } => (&self.asset_from_color(&color).pawn, PAWN_OFFSET),
-            Piece::Bishop { color } => (&self.asset_from_color(&color).bishop, BISHOP_OFFSET),
-            Piece::Knight { color } => (&self.asset_from_color(&color).knight, KNIGHT_OFFSET),
-            Piece::Rook { color, .. } => (&self.asset_from_color(&color).rook, ROOK_OFFSET),
-            Piece::Queen { color } => (&self.asset_from_color(&color).queen, QUEEN_OFFSET),
-            Piece::King { color, .. } => (&self.asset_from_color(&color).king, KNIGHT_OFFSET),
+            Piece::Pawn { color } => &self.asset_from_color(&color).pawn,
+            Piece::Bishop { color } => &self.asset_from_color(&color).bishop,
+            Piece::Knight { color } => &self.asset_from_color(&color).knight,
+            Piece::Rook { color, .. } => &self.asset_from_color(&color).rook,
+            Piece::Queen { color } => &self.asset_from_color(&color).queen,
+            Piece::King { color, .. } => &self.asset_from_color(&color).king,
         }
     }
 }
@@ -210,7 +221,7 @@ impl State for TetraState {
                         TetraState::x_position(i),
                         TetraState::y_position(i),
                     ))
-                    .scale(Vec2::new(1.171875, 1.171875)),
+                    .scale(Vec2::new(SQUARE_SIZE as f32 / square.width() as f32, SQUARE_SIZE as f32 / square.height() as f32))
             );
             match self.view.board[i] {
                 Some(piece) => {
@@ -221,14 +232,8 @@ impl State for TetraState {
                     {
                         continue;
                     }
-                    let (texture, offset) = self.piece_to_texture(&piece);
-                    texture.draw(
-                        ctx,
-                        Vec2::new(
-                            offset + TetraState::x_position(i),
-                            11.0 + TetraState::y_position(i),
-                        ),
-                    )
+                    let texture = self.piece_to_texture(&piece);
+                    draw_resize(ctx, texture, TetraState::x_position(i), TetraState::y_position(i));
                 }
                 None => (),
             }
@@ -248,14 +253,8 @@ impl State for TetraState {
         if let Some(index) = self.selected_piece {
             match self.board.piece_at_board_index(index) {
                 Some(piece) => {
-                    let (texture, offset) = self.piece_to_texture(piece);
-                    texture.draw(
-                        ctx,
-                        Vec2::new(
-                            offset - 75.0 + input::get_mouse_x(ctx),
-                            11.0 - 75.0 + input::get_mouse_y(ctx),
-                        ),
-                    );
+                    let texture = self.piece_to_texture(piece);
+                    draw_resize(ctx, texture, input::get_mouse_x(ctx) - SQUARE_SIZE / 2.0, input::get_mouse_y(ctx) - SQUARE_SIZE / 2.0);
                 }
                 None => (),
             };
