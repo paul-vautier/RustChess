@@ -185,8 +185,11 @@ pub fn get_moves_for_piece_and_direction(
                 None => Some(Box::new(Move::new(start, end))),
             },
         };
-
-        moves.append(&mut to_promotion(move_option, current_piece, end));
+        if let Piece::Pawn { color: _ } = current_piece {
+            moves.append(&mut to_promotion(move_option, current_piece, end));
+        } else {
+            moves.extend(move_option);
+        }
         if !is_slide {
             break;
         }

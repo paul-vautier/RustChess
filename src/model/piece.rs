@@ -101,9 +101,8 @@ fn moves_from_slice(
 impl Piece {
     pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
         use Piece::*;
-        let mut moves = MovesList(Vec::new());
         if *self.get_color() != board.color_turn() {
-            return moves;
+            return MovesList(Vec::new());
         }
         match self {
             Pawn { color } => pawn_moves(position, color, board),
@@ -111,6 +110,7 @@ impl Piece {
                 color,
                 first_move: _,
             } => {
+                let mut moves = MovesList(Vec::new());
                 for direction in DIRECTIONS {
                     if actions::can_king_move(board, color, position, direction) {
                         moves.append(&mut actions::get_moves_for_piece_and_direction(
@@ -118,7 +118,8 @@ impl Piece {
                         ))
                     }
                 }
-                actions::castles(position, self, board)
+                moves.append(&mut actions::castles(position, self, board));
+                moves
             }
             _ => moves_from_slice(position, self.get_direction(), self, board),
         }
