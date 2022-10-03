@@ -174,15 +174,15 @@ impl Board {
                             first_move,
                         } => {
                             if *first_move >= self.turn - 1 {
-                                *first_move = u32::MAX;
+                                *first_move = self.turn;
                             }
                         }
                         Piece::King {
-                            color: color,
+                            color,
                             first_move,
                         } => {
                             if *first_move >= self.turn - 1 {
-                                *first_move = u32::MAX;
+                                *first_move = self.turn;
                             }
 
                             match color {
@@ -218,7 +218,7 @@ impl Board {
                                     }
                                 }
                                 Piece::King {
-                                    color: color,
+                                    color,
                                     first_move,
                                 } => {
                                     if *first_move >= self.turn - 1 {
@@ -267,13 +267,6 @@ impl Board {
             }
             position = util::add_usize(position, direction);
         }
-    }
-
-    /**
-     * Position on the actual board, from 0 to 120
-     */
-    pub fn piece_at_mailbox_index_as_mut(&mut self, position: usize) -> &mut Square {
-        &mut self.mailbox[position]
     }
 
     pub fn is_on_promote_flag(color: &Color, index: usize) -> bool {

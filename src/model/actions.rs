@@ -2,7 +2,7 @@ use crate::model::board::{Square::*, TO_BOARD};
 use crate::util::util;
 use std::ops::{Deref, DerefMut};
 
-use super::board::{Board, InvalidMoveError, Square};
+use super::board::{Board, InvalidMoveError, Square, BOARD_X};
 use super::chess_actions::capture::Capture;
 use super::chess_actions::castle::Castle;
 use super::chess_actions::movement::Move;
@@ -245,7 +245,7 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
         first_move,
     } = piece
     {
-        if *first_move != u32::MAX {
+        if *first_move != u32::MAX || !can_king_move(board, piece.get_color(), king_position, 0){
             return MovesList(Vec::new());
         }
         let mut moves = MovesList(Vec::new());
@@ -257,7 +257,9 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
             },
         )) = board.ray(king_position, -1)
         {
-            if *first_move == u32::MAX {
+            if *first_move == u32::MAX 
+                && can_king_move(board, piece.get_color(), king_position, - 1)
+                && can_king_move(board, piece.get_color(), king_position, - 2) {
                 moves.push(Box::new(Castle::new(
                     Move::new(king_position, king_position - 2),
                     Move::new(pos, king_position - 1),
@@ -272,7 +274,9 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
             },
         )) = board.ray(king_position, 1)
         {
-            if *first_move == u32::MAX {
+            if *first_move == u32::MAX
+                && can_king_move(board, piece.get_color(), king_position, 1)
+                && can_king_move(board, piece.get_color(), king_position,  2) {
                 moves.push(Box::new(Castle::new(
                     Move::new(king_position, king_position + 2),
                     Move::new(pos, king_position + 1),
