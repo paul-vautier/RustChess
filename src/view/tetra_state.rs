@@ -16,7 +16,7 @@ use crate::model::{
     piece::{self, Color, Piece},
 };
 const PIECE_TO_SQUARE_RATIO: f32 = 0.9;
-pub const SQUARE_SIZE: f32 = 100.0;
+pub const SQUARE_SIZE: f32 = 120.0;
 
 struct PiecesAsset {
     king: Texture,

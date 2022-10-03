@@ -30,10 +30,6 @@ impl ChessAction for Castle {
         Ok(())
     }
 
-    fn is_valid(&self, board: &Board) -> bool {
-        todo!()
-    }
-
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
         Err("Cannot call 'as_promotion' on move 'Castle'".to_string())
     }

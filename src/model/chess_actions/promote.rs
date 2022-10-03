@@ -29,11 +29,7 @@ impl ChessAction for Promote {
         todo!()
     }
 
-    fn is_valid(&self, board: &Board) -> bool {
-        todo!()
-    }
-
-    fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
+    fn as_promotion(&self, _color: &Color) -> Result<MovesList, String> {
         Err("Cannot call 'as_promotion' on move 'Promotion'".to_string())
     }
 

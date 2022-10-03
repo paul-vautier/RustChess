@@ -62,27 +62,16 @@ impl ChessAction for Capture {
         Ok(())
     }
 
-    fn is_valid(&self, board: &Board) -> bool {
-        todo!()
-    }
-
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
         Ok(MovesList(vec![
-            Box::new(Promote {
-                piece: Piece::Bishop { color: *color },
-                previous_action: Box::new(self.clone()),
-            }),
-            Box::new(Promote {
-                piece: Piece::Rook {
+            Box::new(Promote::new(Piece::Bishop { color: *color }, Box::new(self.clone()))),
+            Box::new(Promote::new(Piece::Rook {
                     color: *color,
                     first_move: 0,
-                },
-                previous_action: Box::new(self.clone()),
-            }),
-            Box::new(Promote {
-                piece: Piece::Queen { color: *color },
-                previous_action: Box::new(self.clone()),
-            }),
+                }, 
+                Box::new(self.clone())
+            )),
+            Box::new(Promote::new(Piece::Queen { color: *color }, Box::new(self.clone()))),
         ]))
     }
 

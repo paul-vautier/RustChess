@@ -1,5 +1,6 @@
 use crate::model::board::{Square::*, TO_BOARD};
 use crate::util::util;
+use std::collections::HashMap;
 use std::ops::{Deref, DerefMut};
 
 use super::board::{Board, InvalidMoveError, Square, BOARD_X};
@@ -18,7 +19,6 @@ use super::piece::{self, Color, Piece};
 pub trait ChessAction {
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>;
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>;
-    fn is_valid(&self, board: &Board) -> bool;
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String>;
     fn to_algebraic_notation(&self, board: &Board) -> String;
     fn target_square(&self) -> usize;
@@ -28,15 +28,14 @@ pub trait ChessAction {
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
 
-pub struct Pin {
-    position: usize,
-    restricting_axis: i32,
+enum PinState {
+    Pinned(i32),
+    Locked
 }
-
 pub struct BoardAttackData {
     pub white_king: usize,
     pub black_king: usize,
-    pins: Vec<Pin>,
+    pins: HashMap<usize, PinState>,
     resolve_check: Vec<usize>,
 }
 
@@ -126,7 +125,7 @@ pub fn generates_moves(board: &Board) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let playing_color = board.color_turn();
     let king_position = board.get_king_by_color(&playing_color);
-    let pins: Vec<usize> = vec![];
+    let mut pins: HashMap<usize, PinState> = HashMap::new();
     let resolve_check: Vec<usize> = vec![];
 
     let mut double_check = false;
@@ -139,12 +138,23 @@ pub fn generates_moves(board: &Board) -> MovesList {
                     if *behind.get_color() != playing_color
                         && piece.is_sliding()
                         && piece.has_direction(-direction)
-                    {}
+                    {
+                        if pins.contains_key(&position) {
+                            pins.insert(position, PinState::Locked);
+                        } else {
+                            pins.insert(position, PinState::Pinned(direction));
+                        }
+                    }
                 }
-            } else {
+            } else {                
                 // King in check
-                if piece.is_sliding() && piece.has_direction(-direction) {
-                    if !resolve_check.is_empty() {
+                if (piece.is_sliding() && piece.has_direction(-direction))
+                    || piece
+                        .get_attack_direction()
+                        .contains(&(king_position as i32 - position as i32)) {
+                    if resolve_check.is_empty() {
+                        
+                    } else {
                         double_check = true;
                         break;
                     }
@@ -170,7 +180,12 @@ pub fn generates_moves(board: &Board) -> MovesList {
 
     for (index, piece) in board.iter() {
         match piece {
-            Some(piece) => moves.append(&mut piece.valid_moves(index, board)),
+            Some(piece) => {
+                if let Some(PinState::Locked) = pins.get(&index) {
+                    continue;
+                }
+                moves.append(&mut piece.valid_moves(index, board))
+            },
             None => (),
         }
     }

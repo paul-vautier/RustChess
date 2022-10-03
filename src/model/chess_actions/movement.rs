@@ -6,6 +6,8 @@ use crate::model::{
     piece::{Color, Piece},
 };
 
+use super::promote::Promote;
+
 pub struct Move {
     pub start: usize,
     pub end: usize,
@@ -36,12 +38,17 @@ impl ChessAction for Move {
         Ok(())
     }
 
-    fn is_valid(&self, board: &Board) -> bool {
-        todo!()
-    }
-
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
-        todo!()
+        Ok(MovesList(vec![
+            Box::new(Promote::new(Piece::Bishop { color: *color }, Box::new(self.clone()))),
+            Box::new(Promote::new(Piece::Rook {
+                    color: *color,
+                    first_move: 0,
+                }, 
+                Box::new(self.clone())
+            )),
+            Box::new(Promote::new(Piece::Queen { color: *color }, Box::new(self.clone()))),
+        ]))
     }
 
     fn to_algebraic_notation(&self, board: &Board) -> String {
@@ -59,7 +66,7 @@ impl ChessAction for Move {
                     panic!("Should not have happened : A move was created without a valid piece")
                 }
             },
-            Outside => {
+            board::Square::Outside => {
                 panic!("Should not have happened : A move was created without a valid square")
             }
         };
