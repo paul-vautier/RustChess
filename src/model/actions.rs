@@ -83,13 +83,28 @@ pub fn can_king_move(
     }
     for direction in piece::DIRECTIONS {
         if let Some((hit, piece)) = board.ray(position, direction) {
-            if piece.get_color() != king_color
+            if let Piece::King { color, first_move: _ } = piece {
+                if let Some((hit, piece)) = board.ray(hit, direction) {
+                    if color == king_color {
+                        if piece.get_color() != king_color
+                        && ((piece.is_sliding() && piece.has_direction(-direction))
+                            || piece
+                                .get_attack_direction()
+                                .contains(&(position as i32 - hit as i32)))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            } else {
+                if piece.get_color() != king_color
                 && ((piece.is_sliding() && piece.has_direction(-direction))
                     || piece
                         .get_attack_direction()
                         .contains(&(position as i32 - hit as i32)))
             {
                 return false;
+            }
             }
         }
     }
