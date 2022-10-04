@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use tetra::ContextBuilder;
 use view::tetra_state::{TetraState, SQUARE_SIZE};
 
@@ -7,6 +9,8 @@ mod util;
 mod view;
 mod generator;
 fn main(){
+
+   let now = Instant::now();
     let mut board = {
         let this = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR".to_string());
         match this {
@@ -14,7 +18,8 @@ fn main(){
             Err(e) => panic!("Invalid board {}", e.err),
         }
     };
-    println!("count: {}", generator::generator::count_actions(&mut board, 6));
+    println!("count: {}", generator::generator::count_actions(&mut board, 5));
+    println!("elapsed: {}", now.elapsed().as_millis());
 }
 
 fn run() -> tetra::Result  {
