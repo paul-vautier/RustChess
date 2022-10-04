@@ -1,17 +1,19 @@
 use std::{
+    cmp::{self, min_by},
     ops::{Deref, DerefMut},
-    path::Path, thread::current, cmp::{min_by, self},
+    path::Path,
+    thread::current,
 };
 
 use tetra::{
     graphics::{self, mesh::Mesh, DrawParams, Rectangle, Texture},
-    input::{self, MouseButton, Key},
+    input::{self, Key, MouseButton},
     math::Vec2,
-    Context, State, TetraError, window,
+    window, Context, State, TetraError,
 };
 
 use crate::model::{
-    actions::{ChessAction, self},
+    actions::{self, ChessAction},
     board::{Board, Square, TO_BOARD, TO_MAILBOX},
     piece::{self, Color, Piece},
 };
@@ -27,7 +29,7 @@ struct PiecesAsset {
     knight: Texture,
 }
 
-fn draw_resize(ctx: &mut Context, texture: &Texture, x : f32, y: f32) {
+fn draw_resize(ctx: &mut Context, texture: &Texture, x: f32, y: f32) {
     let (width, height) = texture.size();
     let max = cmp::max(width, height) as f32;
 
@@ -38,9 +40,15 @@ fn draw_resize(ctx: &mut Context, texture: &Texture, x : f32, y: f32) {
 
     let drawn_x = ratio * width;
     let drawn_y = ratio * height;
-    texture.draw(ctx, DrawParams::new()
-            .position(Vec2::new(x + (SQUARE_SIZE - drawn_x) / 2.0, y + (SQUARE_SIZE - drawn_y) / 2.0))
-            .scale(Vec2::new(ratio, ratio)));
+    texture.draw(
+        ctx,
+        DrawParams::new()
+            .position(Vec2::new(
+                x + (SQUARE_SIZE - drawn_x) / 2.0,
+                y + (SQUARE_SIZE - drawn_y) / 2.0,
+            ))
+            .scale(Vec2::new(ratio, ratio)),
+    );
 }
 impl PiecesAsset {
     pub fn load(ctx: &mut Context, folder: &Path) -> tetra::Result<PiecesAsset> {
@@ -139,15 +147,15 @@ impl TetraState {
 
         let position = x + 8 * y;
         if let Some(start) = self.selected_piece {
-
             if let Some(piece) = self.board.piece_at_board_index(start as usize) {
                 let mut moves = actions::generate_moves(&self.board);
-                let mut selected : Vec<Box<dyn ChessAction>> = Vec::new();
+                let mut selected: Vec<Box<dyn ChessAction>> = Vec::new();
 
                 for i in (0..moves.len()).rev() {
                     if moves[i].start_square() == TO_MAILBOX[start]
-                        && moves[i].target_square() == TO_MAILBOX[position] as usize {
-                            selected.push(moves.remove(i))
+                        && moves[i].target_square() == TO_MAILBOX[position] as usize
+                    {
+                        selected.push(moves.remove(i))
                     }
                 }
 
@@ -162,7 +170,6 @@ impl TetraState {
         self.valid_squares = vec![];
     }
 
-
     fn handle_key_pressed(&mut self, key: Key) {
         if key == Key::Left {
             self.board.undo_last_move();
@@ -175,20 +182,17 @@ impl TetraState {
                 color: Color::WHITE,
             })
         });
-        for index in 0..64 {
-            board[index] = if let Square::Inside(option) = self.board.mailbox[TO_MAILBOX[index]] {
-                match option {
-                    Some(piece) => Some(piece.clone()),
-                    None => None,
-                }
-            } else {
-                None
-            }
+
+        for (index, curr) in self.board.iter() {
+            board[TO_BOARD[index] as usize] = match curr {
+                Some(piece) => Some(piece.clone()),
+                None => None,
+            };
         }
         DisplayableBoard { board }
     }
 
-    fn piece_to_texture(&self, piece: &Piece) -> &Texture{
+    fn piece_to_texture(&self, piece: &Piece) -> &Texture {
         match piece {
             Piece::Pawn { color } => &self.asset_from_color(&color).pawn,
             Piece::Bishop { color } => &self.asset_from_color(&color).bishop,
@@ -220,7 +224,10 @@ impl State for TetraState {
                         TetraState::x_position(i),
                         TetraState::y_position(i),
                     ))
-                    .scale(Vec2::new(SQUARE_SIZE as f32 / square.width() as f32, SQUARE_SIZE as f32 / square.height() as f32))
+                    .scale(Vec2::new(
+                        SQUARE_SIZE as f32 / square.width() as f32,
+                        SQUARE_SIZE as f32 / square.height() as f32,
+                    )),
             );
             match self.view.board[i] {
                 Some(piece) => {
@@ -232,7 +239,12 @@ impl State for TetraState {
                         continue;
                     }
                     let texture = self.piece_to_texture(&piece);
-                    draw_resize(ctx, texture, TetraState::x_position(i), TetraState::y_position(i));
+                    draw_resize(
+                        ctx,
+                        texture,
+                        TetraState::x_position(i),
+                        TetraState::y_position(i),
+                    );
                 }
                 None => (),
             }
@@ -253,7 +265,12 @@ impl State for TetraState {
             match self.board.piece_at_board_index(index) {
                 Some(piece) => {
                     let texture = self.piece_to_texture(piece);
-                    draw_resize(ctx, texture, input::get_mouse_x(ctx) - SQUARE_SIZE / 2.0, input::get_mouse_y(ctx) - SQUARE_SIZE / 2.0);
+                    draw_resize(
+                        ctx,
+                        texture,
+                        input::get_mouse_x(ctx) - SQUARE_SIZE / 2.0,
+                        input::get_mouse_y(ctx) - SQUARE_SIZE / 2.0,
+                    );
                 }
                 None => (),
             };
@@ -272,10 +289,8 @@ impl State for TetraState {
                     input::get_mouse_x(ctx),
                     input::get_mouse_y(ctx),
                 );
-            },
-            tetra::Event::KeyPressed { key } => {
-                self.handle_key_pressed(key)
             }
+            tetra::Event::KeyPressed { key } => self.handle_key_pressed(key),
             _ => (),
         }
         Ok(())

@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+use std::ops::Index;
 
 use crate::util::util;
 
@@ -10,6 +11,7 @@ use super::piece::Piece;
 pub const BOARD_X: usize = 10;
 pub const BOARD_Y: usize = 12;
 pub const BOARD_SIZE: usize = BOARD_X * BOARD_Y;
+pub const MAX_PIECES_COUNT: usize = 32;
 pub const BLACK_ROW: usize = 2;
 pub const WHITE_ROW: usize = 9;
 
@@ -40,18 +42,22 @@ pub struct InvalidRemovalError {
     pub reason: String,
 }
 
+#[derive(Debug)]
 pub enum Square {
     Inside(Option<Piece>),
     Outside,
 }
 
 pub struct Board {
-    pub mailbox: [Square; BOARD_SIZE],
+    mailbox: [Square; BOARD_SIZE],
     pub double_pawn_move: Option<(usize, usize)>, // (ghost, pawn)
     pub history: VecDeque<Box<dyn ChessAction>>,
     pub turn: u32,
     pub white_king: usize,
     pub black_king: usize,
+    pub pieces: [usize; MAX_PIECES_COUNT],
+    pieces_map: [usize; BOARD_SIZE],
+    num_pieces: usize,
 }
 pub struct BoardIterator<'a> {
     pub index: usize,
@@ -72,6 +78,30 @@ impl Iterator for BoardIterator<'_> {
         Some((TO_MAILBOX[self.index - 1], result))
     }
 }
+
+pub struct PiecesIteraror<'a> {
+    pub index: usize,
+    pub board: &'a Board,
+}
+
+impl<'a> Iterator for PiecesIteraror<'a> {
+    type Item = (usize, &'a Piece);
+    fn next(&mut self) -> Option<(usize, &'a Piece)> {
+        if self.index >= self.board.num_pieces {
+            return None;
+        }
+        let result = match &self.board.mailbox[self.board.pieces[self.index]] {
+            Square::Inside(Some(piece)) => piece,
+            sq => panic!(
+                "Invalid board : no piece were found on piece iterator {:?}, {:?}, {}",
+                sq, self.board.mailbox, self.index
+            ),
+        };
+        self.index += 1;
+        Some((self.board.pieces[self.index - 1], result))
+    }
+}
+
 impl Board {
     pub fn iter(&self) -> BoardIterator {
         BoardIterator {
@@ -80,6 +110,12 @@ impl Board {
         }
     }
 
+    pub fn pieces_iter(&self) -> PiecesIteraror {
+        PiecesIteraror {
+            index: 0,
+            board: self,
+        }
+    }
     pub fn is_inside(&self, position: usize) -> bool {
         TO_BOARD[position] != -1
     }
@@ -131,8 +167,14 @@ impl Board {
 
     pub fn remove_piece(&mut self, position: usize) -> Option<Piece> {
         match &mut self.mailbox[position] {
-            Square::Inside(option) => option.take(),
-            Square::Outside => None,
+            Square::Inside(ref mut option @ Some(_)) => {
+                let index = self.pieces_map[position];
+                self.pieces[index] = self.pieces[self.num_pieces - 1];
+                self.pieces_map[self.pieces[index]] = index;
+                self.num_pieces -= 1;
+                option.take()
+            }
+            _ => None,
         }
     }
 
@@ -145,6 +187,9 @@ impl Board {
                         reason: "cannot add a piece to a non empty square".to_string(),
                     });
                 }
+                self.pieces[self.num_pieces] = position;
+                self.pieces_map[position] = self.num_pieces;
+                self.num_pieces += 1;
                 *option = Some(piece);
                 Ok(())
             }
@@ -177,10 +222,7 @@ impl Board {
                                 *first_move = self.turn;
                             }
                         }
-                        Piece::King {
-                            color,
-                            first_move,
-                        } => {
+                        Piece::King { color, first_move } => {
                             if *first_move >= self.turn - 1 {
                                 *first_move = self.turn;
                             }
@@ -217,10 +259,7 @@ impl Board {
                                         *first_move = u32::MAX;
                                     }
                                 }
-                                Piece::King {
-                                    color,
-                                    first_move,
-                                } => {
+                                Piece::King { color, first_move } => {
                                     if *first_move >= self.turn - 1 {
                                         *first_move = u32::MAX;
                                     }
@@ -313,12 +352,35 @@ impl Board {
         }
     }
 
-    pub fn from_fen(notation: String) -> Result<Board, InvalidBoardErr> {
-        let mut mailbox = [(); BOARD_SIZE].map(|_| Outside);
+    pub fn empty() -> Self {
+        use Square::*;
+
+        let mailbox = [(); BOARD_SIZE].map(|_| Outside);
+        Board {
+            mailbox,
+            double_pawn_move: None,
+            history: VecDeque::new(),
+            turn: 1,
+            white_king: 0,
+            black_king: 0,
+            pieces: [(); MAX_PIECES_COUNT].map(|_| 0),
+            pieces_map: [(); BOARD_SIZE].map(|_| 0),
+            num_pieces: 0,
+        }
+    }
+
+    pub fn set_piece_inside(&mut self, position: usize, piece: Piece) {
+        use Square::*;
+        self.mailbox[position] = Inside(None);
+        self.add_piece(position, piece);
+    }
+
+    pub fn from_fen(notation: String) -> Result<Self, InvalidBoardErr> {
         let mut offset: usize = 2 * BOARD_X + 1;
         let mut index: usize = offset;
         let mut white_king = None;
         let mut black_king = None;
+        let mut board = Board::empty();
         use Square::*;
         for (i, c) in notation.chars().into_iter().enumerate() {
             match c.to_lowercase().next() {
@@ -349,42 +411,50 @@ impl Board {
                                 }
                             }
                         }
-                        mailbox[index] = Inside(Some(Piece::King {
-                            color: Board::get_color_fen(c),
-                            first_move: u32::MAX,
-                        }));
+                        board.set_piece_inside(
+                            index,
+                            Piece::King {
+                                color: Board::get_color_fen(c),
+                                first_move: u32::MAX,
+                            },
+                        )
                     }
-                    'q' => {
-                        mailbox[index] = Inside(Some(Piece::Queen {
+                    'q' => board.set_piece_inside(
+                        index,
+                        Piece::Queen {
                             color: Board::get_color_fen(c),
-                        }));
-                    }
+                        },
+                    ),
                     // TODO : VERIFY TOWER MOVED
-                    'r' => {
-                        mailbox[index] = Inside(Some(Piece::Rook {
+                    'r' => board.set_piece_inside(
+                        index,
+                        Piece::Rook {
                             color: Board::get_color_fen(c),
                             first_move: u32::MAX,
-                        }));
-                    }
-                    'b' => {
-                        mailbox[index] = Inside(Some(Piece::Bishop {
+                        },
+                    ),
+                    'b' => board.set_piece_inside(
+                        index,
+                        Piece::Bishop {
                             color: Board::get_color_fen(c),
-                        }));
-                    }
-                    'p' => {
-                        mailbox[index] = Inside(Some(Piece::Pawn {
+                        },
+                    ),
+                    'p' => board.set_piece_inside(
+                        index,
+                        Piece::Pawn {
                             color: Board::get_color_fen(c),
-                        }));
-                    }
-                    'n' => {
-                        mailbox[index] = Inside(Some(Piece::Knight {
+                        },
+                    ),
+                    'n' => board.set_piece_inside(
+                        index,
+                        Piece::Knight {
                             color: Board::get_color_fen(c),
-                        }));
-                    }
+                        },
+                    ),
                     '1'..='8' => {
                         let empty_size = (c.to_digit(10).unwrap_or(1) - 1) as usize;
                         for i in 0..=empty_size {
-                            mailbox[index + i] = Inside(None)
+                            board.mailbox[index + i] = Inside(None)
                         }
                         index += empty_size as usize;
                     }
@@ -417,14 +487,9 @@ impl Board {
             };
             index += 1;
         }
-
-        Ok(Board {
-            mailbox,
-            double_pawn_move: None,
-            history: VecDeque::new(),
-            turn: 1,
-            white_king: white_king.unwrap(),
-            black_king: black_king.unwrap(),
-        })
+        board.double_pawn_move = None;
+        board.white_king = white_king.unwrap();
+        board.black_king = white_king.unwrap();
+        Ok(board)
     }
 }

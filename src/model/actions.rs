@@ -30,7 +30,7 @@ pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
 
 pub enum PinState {
     Pinned(i32),
-    Locked
+    Locked,
 }
 pub struct BoardAttackData {
     pub white_king: usize,
@@ -82,14 +82,18 @@ pub fn can_king_move(
     }
     for direction in piece::DIRECTIONS {
         if let Some((hit, piece)) = board.ray(position, direction) {
-            if let Piece::King { color, first_move: _ } = piece {
+            if let Piece::King {
+                color,
+                first_move: _,
+            } = piece
+            {
                 if let Some((hit, piece)) = board.ray(hit, direction) {
                     if color == king_color {
                         if piece.get_color() != king_color
-                        && ((piece.is_sliding() && piece.has_direction(-direction))
-                            || piece
-                                .get_attack_direction()
-                                .contains(&(position as i32 - hit as i32)))
+                            && ((piece.is_sliding() && piece.has_direction(-direction))
+                                || piece
+                                    .get_attack_direction()
+                                    .contains(&(position as i32 - hit as i32)))
                         {
                             return false;
                         }
@@ -97,13 +101,13 @@ pub fn can_king_move(
                 }
             } else {
                 if piece.get_color() != king_color
-                && ((piece.is_sliding() && piece.has_direction(-direction))
-                    || piece
-                        .get_attack_direction()
-                        .contains(&(position as i32 - hit as i32)))
-            {
-                return false;
-            }
+                    && ((piece.is_sliding() && piece.has_direction(-direction))
+                        || piece
+                            .get_attack_direction()
+                            .contains(&(position as i32 - hit as i32)))
+                {
+                    return false;
+                }
             }
         }
     }
@@ -146,18 +150,18 @@ pub fn generate_moves(board: &Board) -> MovesList {
                         }
                     }
                 }
-            } else {                
+            } else {
                 // King in check
                 if (piece.is_sliding() && piece.has_direction(-direction))
                     || piece
                         .get_attack_direction()
-                        .contains(&(king_position as i32 - position as i32)) {
+                        .contains(&(king_position as i32 - position as i32))
+                {
                     if resolve_check.is_empty() {
                         let mut curr = king_position;
-                        while curr !=  position {
+                        while curr != position {
                             curr = util::add_usize(curr, direction);
                             resolve_check.push(curr);
-
                         }
                     } else {
                         double_check = true;
@@ -183,16 +187,11 @@ pub fn generate_moves(board: &Board) -> MovesList {
         }
     }
 
-    for (index, piece) in board.iter() {
-        match piece {
-            Some(piece) => {
-                if let Some(PinState::Locked) = pins.get(&index) {
-                    continue;
-                }
-                moves.append(&mut piece.valid_moves(index, board, &resolve_check, &pins))
-            },
-            None => (),
+    for (index, piece) in board.pieces_iter() {
+        if let Some(PinState::Locked) = pins.get(&index) {
+            continue;
         }
+        moves.append(&mut piece.valid_moves(index, board, &resolve_check, &pins))
     }
 
     moves
@@ -202,15 +201,19 @@ pub fn get_moves_for_piece_and_direction(
     direction: i32,
     is_slide: bool,
     current_piece: &Piece,
-    board: &Board, 
-    resolve_check: &Vec<usize>, 
-    pins: &HashMap<usize, PinState>
+    board: &Board,
+    resolve_check: &Vec<usize>,
+    pins: &HashMap<usize, PinState>,
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
 
-    if let Some(pin_state) = pins.get(&start){
+    if let Some(pin_state) = pins.get(&start) {
         match pin_state {
-            PinState::Pinned(pin_direction) =>if direction != *pin_direction && -direction != *pin_direction {return moves},
+            PinState::Pinned(pin_direction) => {
+                if direction != *pin_direction && -direction != *pin_direction {
+                    return moves;
+                }
+            }
             PinState::Locked => return moves,
         }
     }
@@ -283,7 +286,7 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
         first_move,
     } = piece
     {
-        if *first_move != u32::MAX || !can_king_move(board, piece.get_color(), king_position, 0){
+        if *first_move != u32::MAX || !can_king_move(board, piece.get_color(), king_position, 0) {
             return MovesList(Vec::new());
         }
         let mut moves = MovesList(Vec::new());
@@ -295,9 +298,10 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
             },
         )) = board.ray(king_position, -1)
         {
-            if *first_move == u32::MAX 
-                && can_king_move(board, piece.get_color(), king_position, - 1)
-                && can_king_move(board, piece.get_color(), king_position, - 2) {
+            if *first_move == u32::MAX
+                && can_king_move(board, piece.get_color(), king_position, -1)
+                && can_king_move(board, piece.get_color(), king_position, -2)
+            {
                 moves.push(Box::new(Castle::new(
                     Move::new(king_position, king_position - 2),
                     Move::new(pos, king_position - 1),
@@ -314,7 +318,8 @@ pub fn castles(king_position: usize, piece: &Piece, board: &Board) -> MovesList 
         {
             if *first_move == u32::MAX
                 && can_king_move(board, piece.get_color(), king_position, 1)
-                && can_king_move(board, piece.get_color(), king_position,  2) {
+                && can_king_move(board, piece.get_color(), king_position, 2)
+            {
                 moves.push(Box::new(Castle::new(
                     Move::new(king_position, king_position + 2),
                     Move::new(pos, king_position + 1),

@@ -4,13 +4,16 @@ use tetra::ContextBuilder;
 use view::tetra_state::{TetraState, SQUARE_SIZE};
 
 use crate::model::board::Board;
+mod generator;
 mod model;
 mod util;
 mod view;
-mod generator;
-fn main(){
+fn main() {
+    run();
+}
 
-   let now = Instant::now();
+fn bench() {
+    let now = Instant::now();
     let mut board = {
         let this = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR".to_string());
         match this {
@@ -18,11 +21,13 @@ fn main(){
             Err(e) => panic!("Invalid board {}", e.err),
         }
     };
-    println!("count: {}", generator::generator::count_actions(&mut board, 5));
+    println!(
+        "count: {}",
+        generator::generator::count_actions(&mut board, 4)
+    );
     println!("elapsed: {}", now.elapsed().as_millis());
 }
-
-fn run() -> tetra::Result  {
+fn run() -> tetra::Result {
     let board = {
         let this = Board::from_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR".to_string());
         match this {
@@ -42,4 +47,3 @@ fn run() -> tetra::Result  {
 
     context.run(|ctx| TetraState::new(ctx, board))
 }
-

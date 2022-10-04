@@ -33,14 +33,11 @@ impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let mut cells = [(); 64].map(|_| "⚠".red());
         let mut index: usize = 0;
-        for (_, square) in self.mailbox.iter().enumerate() {
-            let colored_cell = match square {
-                Inside(option) => match option {
-                    Some(piece) => piece.to_string(),
-                    None => " ".to_string(),
-                },
-                Outside => continue,
-             };
+        for (_, piece) in self.iter() {
+            let colored_cell = match piece {
+                Some(piece) => piece.to_string(),
+                None => " ".to_string(),
+            };
 
             cells[index] = if ((index % 2 + (index / 8 % 2)) % 2) == 0 {
                 colored_cell.to_string().on_truecolor(120, 80, 0)
