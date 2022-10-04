@@ -28,7 +28,7 @@ pub trait ChessAction {
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
 
-enum PinState {
+pub enum PinState {
     Pinned(i32),
     Locked
 }
@@ -121,23 +121,23 @@ pub fn can_king_move(
     true
 }
 
-pub fn generates_moves(board: &Board) -> MovesList {
+pub fn generate_moves(board: &Board) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let playing_color = board.color_turn();
     let king_position = board.get_king_by_color(&playing_color);
     let mut pins: HashMap<usize, PinState> = HashMap::new();
-    let resolve_check: Vec<usize> = vec![];
+    let mut resolve_check: Vec<usize> = vec![];
 
     let mut double_check = false;
     for direction in piece::DIRECTIONS {
         if let Some((position, piece)) = board.ray(king_position, direction) {
             if *piece.get_color() == playing_color {
                 // If potential pin, sadly we can't combine condition as if let && are still unstable
-                if let Some((pos, behind)) = board.ray(position, direction) {
+                if let Some((_, behind)) = board.ray(position, direction) {
                     // Pinned
                     if *behind.get_color() != playing_color
-                        && piece.is_sliding()
-                        && piece.has_direction(-direction)
+                        && behind.is_sliding()
+                        && behind.has_direction(-direction)
                     {
                         if pins.contains_key(&position) {
                             pins.insert(position, PinState::Locked);
@@ -153,7 +153,12 @@ pub fn generates_moves(board: &Board) -> MovesList {
                         .get_attack_direction()
                         .contains(&(king_position as i32 - position as i32)) {
                     if resolve_check.is_empty() {
-                        
+                        let mut curr = king_position;
+                        while curr !=  position {
+                            curr = util::add_usize(curr, direction);
+                            resolve_check.push(curr);
+
+                        }
                     } else {
                         double_check = true;
                         break;
@@ -172,7 +177,7 @@ pub fn generates_moves(board: &Board) -> MovesList {
             },
         )) = board.piece_at_mailbox_index(king_position)
         {
-            return piece.valid_moves(king_position, board);
+            return piece.valid_moves(king_position, board, &resolve_check, &pins);
         } else {
             panic!("invalid king position")
         }
@@ -184,7 +189,7 @@ pub fn generates_moves(board: &Board) -> MovesList {
                 if let Some(PinState::Locked) = pins.get(&index) {
                     continue;
                 }
-                moves.append(&mut piece.valid_moves(index, board))
+                moves.append(&mut piece.valid_moves(index, board, &resolve_check, &pins))
             },
             None => (),
         }
@@ -197,23 +202,41 @@ pub fn get_moves_for_piece_and_direction(
     direction: i32,
     is_slide: bool,
     current_piece: &Piece,
-    board: &Board,
+    board: &Board, 
+    resolve_check: &Vec<usize>, 
+    pins: &HashMap<usize, PinState>
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
+
+    if let Some(pin_state) = pins.get(&start){
+        match pin_state {
+            PinState::Pinned(pin_direction) =>if direction != *pin_direction && -direction != *pin_direction {return moves},
+            PinState::Locked => return moves,
+        }
+    }
     let mut end = util::add_usize(start, direction);
     loop {
         let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
             Outside => break,
-            Inside(option) => match option {
-                Some(piece) => {
-                    if piece.get_color() != current_piece.get_color() {
-                        let capture = Capture::new(Move::new(start, end), None, None);
-                        moves.push(Box::new(capture));
+            Inside(option) => {
+                if !resolve_check.is_empty() && !resolve_check.contains(&end) {
+                    end = util::add_usize(end, direction);
+                    if !is_slide {
+                        break;
                     }
-                    break;
+                    continue;
                 }
-                None => Some(Box::new(Move::new(start, end))),
-            },
+                match option {
+                    Some(piece) => {
+                        if piece.get_color() != current_piece.get_color() {
+                            let capture = Capture::new(Move::new(start, end), None, None);
+                            moves.push(Box::new(capture));
+                        }
+                        break;
+                    }
+                    None => Some(Box::new(Move::new(start, end))),
+                }
+            }
         };
         if let Piece::Pawn { color: _ } = current_piece {
             moves.append(&mut to_promotion(move_option, current_piece, end));

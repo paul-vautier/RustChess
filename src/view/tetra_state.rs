@@ -115,7 +115,7 @@ impl TetraState {
         let position = x + 8 * y;
         if let Some(_) = self.board.piece_at_board_index(position) {
             self.selected_piece = Some(position);
-            self.valid_squares = actions::generates_moves(&self.board)
+            self.valid_squares = actions::generate_moves(&self.board)
                 .iter()
                 .filter(|current_move| current_move.start_square() == TO_MAILBOX[position])
                 .map(Box::as_ref)
@@ -141,8 +141,7 @@ impl TetraState {
         if let Some(start) = self.selected_piece {
 
             if let Some(piece) = self.board.piece_at_board_index(start as usize) {
-                let mut moves =
-                    piece.valid_moves(TO_MAILBOX[start], &self.board);
+                let mut moves = actions::generate_moves(&self.board);
                 let mut selected : Vec<Box<dyn ChessAction>> = Vec::new();
 
                 for i in (0..moves.len()).rev() {

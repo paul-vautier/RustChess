@@ -1,7 +1,10 @@
+use std::collections::HashMap;
+
 use crate::util::util;
 
 use super::actions;
 use super::actions::MovesList;
+use super::actions::PinState;
 use super::board::Board;
 use super::board::Square;
 use super::board::BOARD_X;
@@ -27,7 +30,7 @@ pub enum Piece {
     King { color: Color, first_move: u32 }, // Turn where the King first moved
 }
 
-fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
+fn pawn_moves(position: usize, color: &Color, board: &Board, resolve_check: &Vec<usize>, pins: &HashMap<usize, PinState>) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let direction: i32 = match color {
         Color::WHITE => -1,
@@ -55,6 +58,8 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
         false,
         &Piece::Pawn { color: *color },
         board,
+        resolve_check,
+        pins
     ));
 
     // Push 2 squares
@@ -73,6 +78,8 @@ fn pawn_moves(position: usize, color: &Color, board: &Board) -> MovesList {
             false,
             &Piece::Pawn { color: *color },
             board,
+            resolve_check,
+            pins
         ));
     }
 
@@ -83,7 +90,9 @@ fn moves_from_slice(
     position: usize,
     directions: &[i32],
     piece: &Piece,
-    board: &Board,
+    board: &Board, 
+    resolve_check: &Vec<usize>, 
+    pins: &HashMap<usize, PinState>
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
     for direction in directions {
@@ -93,19 +102,21 @@ fn moves_from_slice(
             piece.is_sliding(),
             piece,
             board,
+            resolve_check,
+            pins
         ))
     }
     return moves;
 }
 
 impl Piece {
-    pub fn valid_moves(&self, position: usize, board: &Board) -> MovesList {
+    pub fn valid_moves(&self, position: usize, board: &Board, resolve_check: &Vec<usize>, pins: &HashMap<usize, PinState>) -> MovesList {
         use Piece::*;
         if *self.get_color() != board.color_turn() {
             return MovesList(Vec::new());
         }
         match self {
-            Pawn { color } => pawn_moves(position, color, board),
+            Pawn { color } => pawn_moves(position, color, board, resolve_check, pins),
             King {
                 color,
                 first_move: _,
@@ -114,14 +125,14 @@ impl Piece {
                 for direction in DIRECTIONS {
                     if actions::can_king_move(board, color, position, direction) {
                         moves.append(&mut actions::get_moves_for_piece_and_direction(
-                            position, direction, false, self, board,
+                            position, direction, false, self, board, &vec![],&HashMap::new()
                         ))
                     }
                 }
                 moves.append(&mut actions::castles(position, self, board));
                 moves
             }
-            _ => moves_from_slice(position, self.get_direction(), self, board),
+            _ => moves_from_slice(position, self.get_direction(), self, board, resolve_check, pins),
         }
     }
 
