@@ -9,3 +9,10 @@ edition = "2021"
 rand = "0.8.5"
 colored  = "2"
 tetra = "0.7"
+log = "0.4"
+
+[env]
+RUST_LOG="info"
+
+[profile.release]
+debug = true

@@ -1,15 +1,14 @@
-use std::time::Instant;
-
+use log::info;
+use std::{thread, time::Instant};
 use tetra::ContextBuilder;
 use view::tetra_state::{TetraState, SQUARE_SIZE};
 
 use crate::model::board::Board;
 mod generator;
 mod model;
-mod util;
 mod view;
 fn main() {
-    run();
+    bench();
 }
 
 fn bench() {
@@ -23,7 +22,7 @@ fn bench() {
     };
     println!(
         "count: {}",
-        generator::generator::count_actions(&mut board, 4)
+        generator::generator::count_actions(&mut board, 5)
     );
     println!("elapsed: {}", now.elapsed().as_millis());
 }

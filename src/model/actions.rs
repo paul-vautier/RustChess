@@ -1,7 +1,6 @@
 use crate::model::board::{Square::*, TO_BOARD};
-use crate::util::util;
 use std::collections::HashMap;
-use std::ops::{Deref, DerefMut};
+use std::ops::{Add, Deref, DerefMut};
 
 use super::board::{Board, InvalidMoveError, Square, BOARD_X};
 use super::chess_actions::capture::Capture;
@@ -76,7 +75,7 @@ pub fn can_king_move(
     if direction + (king_position as i32) < 0 {
         return false;
     }
-    let position = util::add_usize(king_position, direction);
+    let position = king_position.add(direction as usize);
     if !board.is_inside(position) {
         return false;
     }
@@ -114,7 +113,7 @@ pub fn can_king_move(
 
     for direction in piece::KNIGHT_OFFSETS {
         if let Inside(Some(Piece::Knight { color })) =
-            board.piece_at_mailbox_index(util::add_usize(position, direction))
+            board.piece_at_mailbox_index(position.add(direction as usize))
         {
             if color != king_color {
                 return false;
@@ -160,7 +159,7 @@ pub fn generate_moves(board: &Board) -> MovesList {
                     if resolve_check.is_empty() {
                         let mut curr = king_position;
                         while curr != position {
-                            curr = util::add_usize(curr, direction);
+                            curr = curr.add(direction as usize);
                             resolve_check.push(curr);
                         }
                     } else {
@@ -217,13 +216,13 @@ pub fn get_moves_for_piece_and_direction(
             PinState::Locked => return moves,
         }
     }
-    let mut end = util::add_usize(start, direction);
+    let mut end = start.add(direction as usize);
     loop {
         let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
             Outside => break,
             Inside(option) => {
                 if !resolve_check.is_empty() && !resolve_check.contains(&end) {
-                    end = util::add_usize(end, direction);
+                    end = end.add(direction as usize);
                     if !is_slide {
                         break;
                     }
@@ -250,7 +249,7 @@ pub fn get_moves_for_piece_and_direction(
             break;
         }
 
-        end = util::add_usize(end, direction);
+        end = end.add(direction as usize);
     }
     moves
 }

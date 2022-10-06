@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
+use std::ops::Add;
 use std::ops::Index;
-
-use crate::util::util;
 
 use super::actions::ChessAction;
 
@@ -294,7 +293,7 @@ impl Board {
     }
 
     pub fn ray(&self, position: usize, direction: i32) -> Option<(usize, &Piece)> {
-        let mut position = util::add_usize(position, direction);
+        let mut position = position.add(direction as usize);
         loop {
             match self.mailbox[position] {
                 Square::Inside(ref option) => {
@@ -304,7 +303,7 @@ impl Board {
                 }
                 Square::Outside => return None,
             }
-            position = util::add_usize(position, direction);
+            position = position.add(direction as usize);
         }
     }
 

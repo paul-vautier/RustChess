@@ -1,6 +1,5 @@
 use std::collections::HashMap;
-
-use crate::util::util;
+use std::ops::Add;
 
 use super::actions;
 use super::actions::MovesList;
@@ -43,16 +42,14 @@ fn pawn_moves(
         Color::BLACK => 1,
     } * BOARD_X as i32;
 
-    let take_right = util::add_usize(position, direction - 1);
-    let take_left = util::add_usize(position, direction + 1);
+    let take_right = position.add((direction - 1) as usize);
+    let take_left = position.add((direction + 1) as usize);
 
     moves.extend(actions::pawn_captures(position, take_right, color, board));
     moves.extend(actions::pawn_captures(position, take_left, color, board));
 
     // Push one square
-    if let Square::Inside(option) =
-        board.piece_at_mailbox_index(util::add_usize(position, direction))
-    {
+    if let Square::Inside(option) = board.piece_at_mailbox_index(position.add(direction as usize)) {
         if option.is_some() {
             return moves;
         }
@@ -71,7 +68,7 @@ fn pawn_moves(
     // Push 2 squares
     if Board::is_on_pawn_flag(color, position) {
         if let Square::Inside(option) =
-            board.piece_at_mailbox_index(util::add_usize(position, 2 * direction))
+            board.piece_at_mailbox_index(position.add((2 * direction) as usize))
         {
             if option.is_some() {
                 return moves;
