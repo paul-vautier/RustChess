@@ -9,7 +9,7 @@ mod model;
 mod util;
 mod view;
 fn main() {
-    run();
+    bench();
 }
 
 fn bench() {
@@ -23,7 +23,7 @@ fn bench() {
     };
     println!(
         "count: {}",
-        generator::generator::count_actions(&mut board, 4)
+        generator::generator::count_actions(&mut board, 6)
     );
     println!("elapsed: {}", now.elapsed().as_millis());
 }

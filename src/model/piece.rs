@@ -43,11 +43,30 @@ fn pawn_moves(
         Color::BLACK => 1,
     } * BOARD_X as i32;
 
-    let take_right = util::add_usize(position, direction - 1);
-    let take_left = util::add_usize(position, direction + 1);
+    let right_dir = direction - 1;
+    let left_dir = direction + 1;
+    let take_right = util::add_usize(position, right_dir);
+    let take_left = util::add_usize(position, left_dir);
 
-    moves.extend(actions::pawn_captures(position, take_right, color, board));
-    moves.extend(actions::pawn_captures(position, take_left, color, board));
+    if resolve_check.is_empty() || !resolve_check.contains(&take_right) {
+        if let Some(PinState::Pinned(direction)) = pins.get(&position) {
+            if *direction == -right_dir || *direction == right_dir {
+                moves.extend(actions::pawn_captures(position, take_right, color, board));
+            } 
+        }
+    }    
+
+    if resolve_check.is_empty()|| !resolve_check.contains(&take_left) {
+        match pins.get(&position) {
+            Some(_) => todo!(),
+            None => todo!(),
+        }
+        if let Some(PinState::Pinned(direction)) =  {
+            if *direction == -left_dir || *direction == left_dir {
+                moves.extend(actions::pawn_captures(position, take_left, color, board));
+            } 
+        }
+    }
 
     // Push one square
     if let Square::Inside(option) =

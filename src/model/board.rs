@@ -489,7 +489,7 @@ impl Board {
         }
         board.double_pawn_move = None;
         board.white_king = white_king.unwrap();
-        board.black_king = white_king.unwrap();
+        board.black_king = black_king.unwrap();
         Ok(board)
     }
 }

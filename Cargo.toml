@@ -9,3 +9,8 @@ edition = "2021"
 rand = "0.8.5"
 colored  = "2"
 tetra = "0.7"
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"

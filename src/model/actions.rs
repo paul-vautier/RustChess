@@ -87,13 +87,13 @@ pub fn can_king_move(
                 first_move: _,
             } = piece
             {
-                if let Some((hit, piece)) = board.ray(hit, direction) {
+                if let Some((second_hit, piece)) = board.ray(hit, direction) {
                     if color == king_color {
                         if piece.get_color() != king_color
                             && ((piece.is_sliding() && piece.has_direction(-direction))
                                 || piece
                                     .get_attack_direction()
-                                    .contains(&(position as i32 - hit as i32)))
+                                    .contains(&(position as i32 - second_hit as i32)))
                         {
                             return false;
                         }
@@ -259,7 +259,7 @@ pub fn pawn_captures(
     from: usize,
     to: usize,
     color: &Color,
-    board: &Board,
+    board: &Board
 ) -> Option<Box<dyn ChessAction>> {
     if let Square::Inside(Some(piece)) = board.piece_at_mailbox_index(to) {
         if piece.get_color() != color {
@@ -267,12 +267,34 @@ pub fn pawn_captures(
         }
     } else if let Some((ghost, pawn)) = board.double_pawn_move {
         if ghost == to {
+            let dir : i32 = pawn as i32 - from as i32;
+            match board.ray(from, dir) {
+                Some((_, Piece::King { color , first_move: _ })) => {
+                    if let Some((_, piece)) = board.ray(pawn, -dir) {
+                        if board.color_turn() == *color && piece.get_color() != color && piece.is_sliding() && piece.has_direction(dir) {
+                            return None;
+                        }
+                    }
+                },
+                Some((_, piece)) => {
+                    if piece.is_sliding() && piece.has_direction(-dir) && board.color_turn() != *piece.get_color() {
+                        if let Some((_, Piece::King { color, first_move:_ })) = board.ray(pawn, -dir) {
+                            if piece.get_color() == color && piece.is_sliding() && piece.has_direction(dir) {
+                                return None;
+                            }
+                        }
+                    }
+                },
+                _ => (),
+            };
+    
             return Some(Box::new(Capture::new(
                 Move::new(from, to),
                 None,
                 Some(pawn),
             )));
         }
+
     }
     None
 }
