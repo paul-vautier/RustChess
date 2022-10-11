@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::ops::Add;
 
 use super::actions;
+use super::actions::BoardPins;
 use super::actions::MovesList;
 use super::actions::PinState;
 use super::board::Board;
@@ -34,7 +35,7 @@ fn pawn_moves(
     color: &Color,
     board: &Board,
     resolve_check: &Vec<usize>,
-    pins: &HashMap<usize, PinState>,
+    pins: &BoardPins,
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let direction: i32 = match color {
@@ -42,18 +43,37 @@ fn pawn_moves(
         Color::BLACK => 1,
     } * BOARD_X as i32;
 
-    let take_right = position.add((direction - 1) as usize);
-    let take_left = position.add((direction + 1) as usize);
+    let right_dir = direction - 1;
+    let left_dir = direction + 1;
+    let take_right = (position as i32 + (right_dir)) as usize;
+    let take_left = (position as i32 + (left_dir)) as usize;
 
-    moves.extend(actions::pawn_captures(position, take_right, color, board));
-    moves.extend(actions::pawn_captures(position, take_left, color, board));
+    if (resolve_check.is_empty() || resolve_check.contains(&take_left))
+        && pins.can_move_in_direction(position, left_dir)
+    {
+        moves.extend(actions::pawn_captures(position, take_left, color, board));
+    }
 
-    // Push one square
-    if let Square::Inside(option) = board.piece_at_mailbox_index(position.add(direction as usize)) {
-        if option.is_some() {
-            return moves;
-        }
-    };
+    if (resolve_check.is_empty() || resolve_check.contains(&take_right))
+        && pins.can_move_in_direction(position, right_dir)
+    {
+        moves.extend(actions::pawn_captures(position, take_right, color, board));
+    }
+
+    if !pins.can_move_in_direction(position, direction) {
+        return moves;
+    }
+
+    let push_one = (position as i32 + direction) as usize;
+
+    if resolve_check.is_empty() || resolve_check.contains(&push_one) {
+        // Push one square
+        if let Square::Inside(option) = board.piece_at_mailbox_index(push_one) {
+            if option.is_some() {
+                return moves;
+            }
+        };
+    }
 
     moves.append(&mut actions::get_moves_for_piece_and_direction(
         position,
@@ -68,12 +88,12 @@ fn pawn_moves(
     // Push 2 squares
     if Board::is_on_pawn_flag(color, position) {
         if let Square::Inside(option) =
-            board.piece_at_mailbox_index(position.add((2 * direction) as usize))
+            board.piece_at_mailbox_index((position as i32 + (2 * direction)) as usize)
         {
             if option.is_some() {
                 return moves;
             }
-        };
+        }
 
         moves.append(&mut actions::get_moves_for_piece_and_direction(
             position,
@@ -95,7 +115,7 @@ fn moves_from_slice(
     piece: &Piece,
     board: &Board,
     resolve_check: &Vec<usize>,
-    pins: &HashMap<usize, PinState>,
+    pins: &BoardPins,
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
     for direction in directions {
@@ -118,7 +138,7 @@ impl Piece {
         position: usize,
         board: &Board,
         resolve_check: &Vec<usize>,
-        pins: &HashMap<usize, PinState>,
+        pins: &BoardPins,
     ) -> MovesList {
         use Piece::*;
         if *self.get_color() != board.color_turn() {
@@ -140,7 +160,7 @@ impl Piece {
                             self,
                             board,
                             &vec![],
-                            &HashMap::new(),
+                            &BoardPins(HashMap::new()),
                         ))
                     }
                 }

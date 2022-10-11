@@ -130,6 +130,7 @@ impl TetraState {
                 .map(ChessAction::target_square)
                 .map(|index| TO_BOARD[index] as usize)
                 .collect();
+            println!("{}", self.valid_squares.len())
         }
     }
 

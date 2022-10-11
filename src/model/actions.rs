@@ -27,6 +27,8 @@ pub trait ChessAction {
 
 pub struct MovesList(pub Vec<Box<dyn ChessAction>>);
 
+pub struct BoardPins(pub HashMap<usize, PinState>);
+
 pub enum PinState {
     Pinned(i32),
     Locked,
@@ -34,7 +36,7 @@ pub enum PinState {
 pub struct BoardAttackData {
     pub white_king: usize,
     pub black_king: usize,
-    pins: HashMap<usize, PinState>,
+    pins: BoardPins,
     resolve_check: Vec<usize>,
 }
 
@@ -66,6 +68,31 @@ impl DerefMut for MovesList {
     }
 }
 
+impl Deref for BoardPins {
+    type Target = HashMap<usize, PinState>;
+    fn deref(&self) -> &HashMap<usize, PinState> {
+        &self.0
+    }
+}
+
+impl DerefMut for BoardPins {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl BoardPins {
+    pub fn can_move_in_direction(&self, pos: usize, direction: i32) -> bool {
+        if let Some(state) = self.get(&pos) {
+            match state {
+                PinState::Pinned(dir) => direction == *dir || -direction == *dir,
+                PinState::Locked => return false,
+            }
+        } else {
+            true
+        }
+    }
+}
 pub fn can_king_move(
     board: &Board,
     king_color: &Color,
@@ -75,30 +102,36 @@ pub fn can_king_move(
     if direction + (king_position as i32) < 0 {
         return false;
     }
-    let position = king_position.add(direction as usize);
+
+    let position = (king_position as i32 + direction) as usize;
+
     if !board.is_inside(position) {
         return false;
     }
+
     for direction in piece::DIRECTIONS {
-        if let Some((hit, piece)) = board.ray(position, direction) {
-            if let Piece::King {
-                color,
-                first_move: _,
-            } = piece
-            {
-                if let Some((hit, piece)) = board.ray(hit, direction) {
+        match board.ray(position, direction) {
+            Some((
+                hit,
+                Piece::King {
+                    color,
+                    first_move: _,
+                },
+            )) if color == king_color => {
+                if let Some((second_hit, piece)) = board.ray(hit, direction) {
                     if color == king_color {
                         if piece.get_color() != king_color
                             && ((piece.is_sliding() && piece.has_direction(-direction))
                                 || piece
                                     .get_attack_direction()
-                                    .contains(&(position as i32 - hit as i32)))
+                                    .contains(&(position as i32 - second_hit as i32)))
                         {
                             return false;
                         }
                     }
                 }
-            } else {
+            }
+            Some((hit, piece)) => {
                 if piece.get_color() != king_color
                     && ((piece.is_sliding() && piece.has_direction(-direction))
                         || piece
@@ -108,14 +141,16 @@ pub fn can_king_move(
                     return false;
                 }
             }
-        }
+            None => (),
+        };
     }
 
     for direction in piece::KNIGHT_OFFSETS {
-        if let Inside(Some(Piece::Knight { color })) =
-            board.piece_at_mailbox_index(position.add(direction as usize))
+        if let Inside(Some(Piece::Knight {
+            color: knight_color,
+        })) = board.piece_at_mailbox_index((position as i32 + direction) as usize)
         {
-            if color != king_color {
+            if knight_color != king_color {
                 return false;
             }
         }
@@ -128,7 +163,7 @@ pub fn generate_moves(board: &Board) -> MovesList {
     let mut moves = MovesList(Vec::new());
     let playing_color = board.color_turn();
     let king_position = board.get_king_by_color(&playing_color);
-    let mut pins: HashMap<usize, PinState> = HashMap::new();
+    let mut pins: BoardPins = BoardPins(HashMap::new());
     let mut resolve_check: Vec<usize> = vec![];
 
     let mut double_check = false;
@@ -159,13 +194,30 @@ pub fn generate_moves(board: &Board) -> MovesList {
                     if resolve_check.is_empty() {
                         let mut curr = king_position;
                         while curr != position {
-                            curr = curr.add(direction as usize);
+                            curr = (curr as i32 + direction) as usize;
                             resolve_check.push(curr);
                         }
                     } else {
                         double_check = true;
                         break;
                     }
+                }
+            }
+        }
+    }
+
+    for direction in piece::KNIGHT_OFFSETS {
+        let knight_position = (king_position as i32 + direction) as usize;
+        if let Inside(Some(Piece::Knight {
+            color: knight_color,
+        })) = board.piece_at_mailbox_index(knight_position as usize)
+        {
+            if *knight_color != playing_color {
+                if resolve_check.is_empty() {
+                    resolve_check.push(knight_position as usize);
+                } else {
+                    double_check = true;
+                    break;
                 }
             }
         }
@@ -202,30 +254,27 @@ pub fn get_moves_for_piece_and_direction(
     current_piece: &Piece,
     board: &Board,
     resolve_check: &Vec<usize>,
-    pins: &HashMap<usize, PinState>,
+    pins: &BoardPins,
 ) -> MovesList {
     let mut moves = MovesList(Vec::new());
 
-    if let Some(pin_state) = pins.get(&start) {
-        match pin_state {
-            PinState::Pinned(pin_direction) => {
-                if direction != *pin_direction && -direction != *pin_direction {
-                    return moves;
-                }
-            }
-            PinState::Locked => return moves,
-        }
+    if !pins.can_move_in_direction(start, direction) {
+        return moves;
     }
-    let mut end = start.add(direction as usize);
+
+    let mut end = (start as i32 + direction) as usize;
     loop {
         let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
             Outside => break,
             Inside(option) => {
                 if !resolve_check.is_empty() && !resolve_check.contains(&end) {
-                    end = end.add(direction as usize);
                     if !is_slide {
                         break;
                     }
+                    if option.is_some() {
+                        break;
+                    }
+                    end = (end as i32 + direction) as usize;
                     continue;
                 }
                 match option {
@@ -249,7 +298,7 @@ pub fn get_moves_for_piece_and_direction(
             break;
         }
 
-        end = end.add(direction as usize);
+        end = (end as i32 + direction) as usize;
     }
     moves
 }
@@ -266,6 +315,50 @@ pub fn pawn_captures(
         }
     } else if let Some((ghost, pawn)) = board.double_pawn_move {
         if ghost == to {
+            let dir: i32 = pawn as i32 - from as i32;
+            match board.ray(from, dir) {
+                Some((
+                    _,
+                    Piece::King {
+                        color,
+                        first_move: _,
+                    },
+                )) => {
+                    if let Some((_, piece)) = board.ray(pawn, -dir) {
+                        if board.color_turn() == *color
+                            && piece.get_color() != color
+                            && piece.is_sliding()
+                            && piece.has_direction(dir)
+                        {
+                            return None;
+                        }
+                    }
+                }
+                Some((_, piece)) => {
+                    if piece.is_sliding()
+                        && piece.has_direction(-dir)
+                        && board.color_turn() != *piece.get_color()
+                    {
+                        if let Some((
+                            _,
+                            Piece::King {
+                                color,
+                                first_move: _,
+                            },
+                        )) = board.ray(pawn, -dir)
+                        {
+                            if piece.get_color() == color
+                                && piece.is_sliding()
+                                && piece.has_direction(dir)
+                            {
+                                return None;
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            };
+
             return Some(Box::new(Capture::new(
                 Move::new(from, to),
                 None,

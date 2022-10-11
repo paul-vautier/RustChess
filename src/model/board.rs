@@ -285,6 +285,8 @@ impl Board {
                                 self.double_pawn_move = action.double_forward();
                             }
                         }
+                    } else {
+                        self.double_pawn_move = None;
                     }
                 }
             }
@@ -293,7 +295,7 @@ impl Board {
     }
 
     pub fn ray(&self, position: usize, direction: i32) -> Option<(usize, &Piece)> {
-        let mut position = position.add(direction as usize);
+        let mut position = (position as i32 + direction) as usize;
         loop {
             match self.mailbox[position] {
                 Square::Inside(ref option) => {
@@ -303,7 +305,7 @@ impl Board {
                 }
                 Square::Outside => return None,
             }
-            position = position.add(direction as usize);
+            position = (position as i32 + direction) as usize;
         }
     }
 
@@ -339,16 +341,20 @@ impl Board {
 
     pub fn get_file(index: usize) -> char {
         match index % BOARD_X {
-            0 => 'a',
-            1 => 'b',
-            2 => 'c',
-            3 => 'd',
-            4 => 'e',
-            5 => 'f',
-            6 => 'g',
-            7 => 'h',
+            1 => 'a',
+            2 => 'b',
+            3 => 'c',
+            4 => 'd',
+            5 => 'e',
+            6 => 'f',
+            7 => 'g',
+            8 => 'h',
             _ => 'x',
         }
+    }
+
+    pub fn get_column(index: usize) -> char {
+        (10 - index / BOARD_X).to_string().chars().nth(0).unwrap()
     }
 
     pub fn empty() -> Self {
@@ -488,7 +494,7 @@ impl Board {
         }
         board.double_pawn_move = None;
         board.white_king = white_king.unwrap();
-        board.black_king = white_king.unwrap();
+        board.black_king = black_king.unwrap();
         Ok(board)
     }
 }

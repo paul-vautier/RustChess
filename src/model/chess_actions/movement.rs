@@ -40,14 +40,25 @@ impl ChessAction for Move {
 
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String> {
         Ok(MovesList(vec![
-            Box::new(Promote::new(Piece::Bishop { color: *color }, Box::new(self.clone()))),
-            Box::new(Promote::new(Piece::Rook {
+            Box::new(Promote::new(
+                Piece::Bishop { color: *color },
+                Box::new(self.clone()),
+            )),
+            Box::new(Promote::new(
+                Piece::Knight { color: *color },
+                Box::new(self.clone()),
+            )),
+            Box::new(Promote::new(
+                Piece::Rook {
                     color: *color,
                     first_move: 0,
-                }, 
-                Box::new(self.clone())
+                },
+                Box::new(self.clone()),
             )),
-            Box::new(Promote::new(Piece::Queen { color: *color }, Box::new(self.clone()))),
+            Box::new(Promote::new(
+                Piece::Queen { color: *color },
+                Box::new(self.clone()),
+            )),
         ]))
     }
 
