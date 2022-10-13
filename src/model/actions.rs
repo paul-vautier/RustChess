@@ -15,7 +15,7 @@ use super::piece::{self, Color, Piece};
  * Capture
  * Promotion
  */
-pub trait ChessAction {
+pub trait ChessAction: std::fmt::Debug {
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>;
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError>;
     fn as_promotion(&self, color: &Color) -> Result<MovesList, String>;

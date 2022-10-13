@@ -92,7 +92,7 @@ impl<'a> Iterator for MailboxIterator<'a> {
         }
         let result = &self.board.mailbox[self.index];
         self.index += 1;
-        Some((self.index, result))
+        Some((self.index - 1, result))
     }
 }
 
@@ -129,6 +129,13 @@ impl Board {
 
     pub fn pieces_iter(&self) -> PiecesIteraror {
         PiecesIteraror {
+            index: 0,
+            board: self,
+        }
+    }
+
+    pub fn mailbox_iter(&self) -> MailboxIterator {
+        MailboxIterator {
             index: 0,
             board: self,
         }
@@ -228,83 +235,83 @@ impl Board {
             Ok(_) => {
                 self.double_pawn_move = None;
 
-            match &mut self.mailbox[action.target_square()] {
-                Square::Inside(ref mut option) => match option.as_mut() {
-                    Some(piece) => match piece {
-                        Piece::Rook {
-                            color: _,
-                            first_move,
-                        } => {
-                            if *first_move >= self.turn - 1 {
-                                *first_move = self.turn;
+                match &mut self.mailbox[action.target_square()] {
+                    Square::Inside(ref mut option) => match option.as_mut() {
+                        Some(piece) => match piece {
+                            Piece::Rook {
+                                color: _,
+                                first_move,
+                            } => {
+                                if *first_move >= self.turn - 1 {
+                                    *first_move = self.turn;
+                                }
                             }
-                        }
-                        Piece::King { color, first_move } => {
-                            if *first_move >= self.turn - 1 {
-                                *first_move = self.turn;
-                            }
+                            Piece::King { color, first_move } => {
+                                if *first_move >= self.turn - 1 {
+                                    *first_move = self.turn;
+                                }
 
-                            match color {
-                                Color::WHITE => self.white_king = action.target_square(),
-                                Color::BLACK => self.black_king = action.target_square(),
+                                match color {
+                                    Color::WHITE => self.white_king = action.target_square(),
+                                    Color::BLACK => self.black_king = action.target_square(),
+                                }
                             }
-                        }
-                        Piece::Pawn { color: _ } => self.double_pawn_move = action.double_forward(),
-                        _ => (),
+                            Piece::Pawn { color: _ } => {
+                                self.double_pawn_move = action.double_forward()
+                            }
+                            _ => (),
+                        },
+                        None => (),
                     },
-                    None => (),
-                },
-                Square::Outside => (),
+                    Square::Outside => (),
+                }
+                self.history.push_back(action);
+                self.turn += 1;
             }
-            self.history.push_back(action);
-            self.turn += 1;
-            },
-            Err(err) => println!("do : {}", err.reason),
+            Err(err) => println!("do : {}, action: {:?}, \n{}", err.reason, action, self),
         }
     }
 
     pub fn undo_last_move(&mut self) {
         match self.history.pop_back() {
-            Some(mut action) => {
-                match action.undo(self) {
-                    Ok(_) => {
-                        match &mut self.mailbox[action.start_square()] {
-                            Square::Inside(ref mut option) => match option.as_mut() {
-                                Some(piece) => match piece {
-                                    Piece::Rook {
-                                        color: _,
-                                        first_move,
-                                    } => {
-                                        if *first_move >= self.turn - 1 {
-                                            *first_move = u32::MAX;
-                                        }
+            Some(mut action) => match action.undo(self) {
+                Ok(_) => {
+                    match &mut self.mailbox[action.start_square()] {
+                        Square::Inside(ref mut option) => match option.as_mut() {
+                            Some(piece) => match piece {
+                                Piece::Rook {
+                                    color: _,
+                                    first_move,
+                                } => {
+                                    if *first_move >= self.turn - 1 {
+                                        *first_move = u32::MAX;
                                     }
-                                    Piece::King { color, first_move } => {
-                                        if *first_move >= self.turn - 1 {
-                                            *first_move = u32::MAX;
-                                        }
-    
-                                        match color {
-                                            Color::WHITE => self.white_king = action.start_square(),
-                                            Color::BLACK => self.black_king = action.start_square(),
-                                        }
+                                }
+                                Piece::King { color, first_move } => {
+                                    if *first_move >= self.turn - 1 {
+                                        *first_move = u32::MAX;
                                     }
-                                    _ => (),
-                                },
-                                None => (),
+
+                                    match color {
+                                        Color::WHITE => self.white_king = action.start_square(),
+                                        Color::BLACK => self.black_king = action.start_square(),
+                                    }
+                                }
+                                _ => (),
                             },
-                            Square::Outside => (),
-                        };
-                        self.turn -= 1;
-                        if let Some(action) = self.history.back() {
-                            self.double_pawn_move = action.double_forward();
-                        } else {
-                            self.double_pawn_move = None;
-                        }
-                    },
-                    Err(err) => println!("undo : {}", err.reason),
-                } 
-            }
+                            None => (),
+                        },
+                        Square::Outside => (),
+                    };
+                    self.turn -= 1;
+                    if let Some(action) = self.history.back() {
+                        self.double_pawn_move = action.double_forward();
+                    } else {
+                        self.double_pawn_move = None;
+                    }
+                }
+                Err(err) => println!("undo : {}, action : {:?}, \n{}", err.reason, action, self),
+            },
             None => (),
         };
     }

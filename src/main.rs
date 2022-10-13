@@ -7,13 +7,16 @@ mod generator;
 mod model;
 mod view;
 
-const fen: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
+const fen: &str = "";
 const default: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const turn: u32 = 1;
 fn main() {
     bench();
 }
 
+fn fen_test() {
+    println!("{}", Board::from_fen(fen.to_string()).ok().unwrap());
+}
 fn bench() {
     let now = Instant::now();
     let mut board = {
@@ -26,7 +29,7 @@ fn bench() {
     board.turn = turn;
     println!(
         "count: {}",
-        generator::generator::count_actions(&mut board, 5, true)
+        generator::generator::count_actions(&mut board, 6, true)
     );
     println!("elapsed: {}", now.elapsed().as_millis());
 }

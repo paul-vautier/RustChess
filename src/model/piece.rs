@@ -67,23 +67,28 @@ fn pawn_moves(
 
     let push_one = (position as i32 + direction) as usize;
 
+    if let Square::Inside(Some(_)) = board.piece_at_mailbox_index(push_one) {
+        return moves;
+    };
+
     if resolve_check.is_empty() || resolve_check.contains(&push_one) {
-        // Push one square
-        if let Square::Inside(Some(_)) = board.piece_at_mailbox_index(push_one) {
-            return moves;
-        };
+        // Push pawn one square
+        moves.push(Box::new(Move::new(
+            position,
+            (position as i32 + direction) as usize,
+        )));
     }
 
-    moves.push(Box::new(Move::new(position , (position as i32 + direction) as usize)));
+    let push_two = (position as i32 + 2 * direction) as usize;
 
     // Push 2 squares
-    if Board::is_on_pawn_flag(color, position) {
-        if let Square::Inside(Some(_)) =
-            board.piece_at_mailbox_index((position as i32 + (2 * direction)) as usize)
-        {
-                return moves;
+    if Board::is_on_pawn_flag(color, position) && resolve_check.is_empty()
+        || resolve_check.contains(&push_two)
+    {
+        if let Square::Inside(Some(_)) = board.piece_at_mailbox_index(push_two) {
+            return moves;
         }
-        moves.push(Box::new(Move::new(position , (position as i32 + (2 * direction)) as usize)));
+        moves.push(Box::new(Move::new(position, push_two)));
     }
 
     return moves;

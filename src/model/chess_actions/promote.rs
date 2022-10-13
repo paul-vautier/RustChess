@@ -3,7 +3,7 @@ use crate::model::{
     board::{Board, InvalidMoveError},
     piece::{Color, Piece},
 };
-
+#[derive(Debug)]
 pub struct Promote {
     pub piece: Piece,
     pub previous_action: Box<dyn ChessAction>,

@@ -2,12 +2,13 @@ use tetra::math::num_integer::Average;
 
 use crate::model::{
     actions::{ChessAction, MovesList},
-    board::{self, Board, InvalidMoveError, BOARD_X},
+    board::{self, Board, InvalidMoveError, BOARD_X, TO_BOARD},
     piece::{Color, Piece},
 };
 
 use super::promote::Promote;
 
+#[derive(Debug)]
 pub struct Move {
     pub start: usize,
     pub end: usize,
@@ -29,7 +30,19 @@ impl Clone for Move {
 
 impl ChessAction for Move {
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
-        board.move_piece(self.start, self.end)?;
+        if let Some(piece) = board.move_piece(self.start, self.end)? {
+            return Err(InvalidMoveError {
+                start: self.start,
+                end: self.end,
+                reason: format!(
+                    "'{}' captured '{}' during movement instead of capture",
+                    board
+                        .piece_at_board_index(TO_BOARD[self.end] as usize)
+                        .unwrap(),
+                    piece
+                ),
+            });
+        }
         Ok(())
     }
 

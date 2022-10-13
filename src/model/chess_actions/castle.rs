@@ -5,7 +5,7 @@ use crate::model::{
 };
 
 use super::movement::Move;
-
+#[derive(Debug)]
 pub struct Castle {
     pub king: Move,
     pub rook: Move,
@@ -16,7 +16,6 @@ impl Castle {
     }
 }
 impl ChessAction for Castle {
-    
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         board.move_piece(self.king.start, self.king.end)?;
         board.move_piece(self.rook.start, self.rook.end)?;

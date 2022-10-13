@@ -6,6 +6,7 @@ use crate::model::{
 
 use super::{movement::Move, promote::Promote};
 
+#[derive(Debug)]
 pub struct Capture {
     pub position: Move,
     pub piece: Option<Piece>,

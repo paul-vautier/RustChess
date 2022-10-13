@@ -1,4 +1,4 @@
-use crate::model::board::{Square::*, TO_MAILBOX, TO_BOARD};
+use crate::model::board::{Square::*, TO_BOARD, TO_MAILBOX};
 use crate::model::board::{BOARD_SIZE, BOARD_X};
 use crate::model::{board::Board, piece::Color, piece::Piece};
 
@@ -31,33 +31,35 @@ impl fmt::Display for Piece {
 
 impl fmt::Display for Board {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        let mut cells = [(); 64].map(|_| "⚠".red());
-        let mut index: usize = 0;
-        for (_, piece) in self.iter() {
-            let colored_cell = match piece {
-                Some(piece) => piece.to_string(),
-                None => " ".to_string(),
-            };
+        let mut cells = [(); BOARD_SIZE].map(|_| "⚠".red());
+        for (index, square) in self.mailbox_iter() {
+            match square {
+                Inside(piece) => {
+                    let colored_cell = match piece {
+                        Some(piece) => piece.to_string(),
+                        None => " ".to_string(),
+                    };
 
-            cells[index] = if ((index % 2 + (index / 8 % 2)) % 2) == 0 {
-                colored_cell.to_string().on_truecolor(120, 80, 0)
-            } else {
-                colored_cell.to_string().on_truecolor(153, 102, 0)
-            };
+                    cells[index] = if ((index % 2 + (index / BOARD_X % 2)) % 2) == 0 {
+                        colored_cell.to_string().on_truecolor(120, 80, 0)
+                    } else {
+                        colored_cell.to_string().on_truecolor(153, 102, 0)
+                    };
 
-            if let Some((ghost, _)) = self.double_pawn_move {
-                if ghost == TO_MAILBOX[index] {
-                    cells[index] = colored_cell.to_string().on_truecolor(100, 200, 100);
+                    if let Some((ghost, _)) = self.double_pawn_move {
+                        if ghost == index {
+                            cells[index] = colored_cell.to_string().on_truecolor(100, 200, 100);
+                        }
+                    }
                 }
+                Outside => (),
             }
-            index += 1;
         }
 
         for (indice, cell) in cells.iter().enumerate() {
-            if indice % 8 == 0 {
+            if indice % BOARD_X == 0 {
                 writeln!(f)?;
             }
-
             match write!(f, "{}", cell) {
                 Ok(_) => {}
                 Err(error) => return Err(error),
