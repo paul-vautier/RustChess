@@ -5,6 +5,7 @@ use crate::model::{
 };
 
 use super::movement::Move;
+
 pub struct Castle {
     pub king: Move,
     pub rook: Move,

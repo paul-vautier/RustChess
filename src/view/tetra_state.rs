@@ -250,6 +250,19 @@ impl State for TetraState {
                 None => (),
             }
         }
+        if let Some((ghost, _)) = self.board.double_pawn_move {
+            let ghost = TO_BOARD[ghost];
+            let rect = Rectangle::new(0.0, 0.0, SQUARE_SIZE, SQUARE_SIZE);
+            Mesh::rectangle(ctx, graphics::mesh::ShapeStyle::Fill, rect)?.draw(
+                ctx,
+                DrawParams::new()
+                    .position(Vec2::new(
+                        SQUARE_SIZE * (ghost % 8) as f32,
+                        SQUARE_SIZE * (ghost / 8) as f32,
+                    ))
+                    .color(graphics::Color::rgba(0.0, 0.5, 0.0, 0.5)),
+            )
+        }
         for square in self.valid_squares.iter() {
             let rect = Rectangle::new(0.0, 0.0, SQUARE_SIZE, SQUARE_SIZE);
             Mesh::rectangle(ctx, graphics::mesh::ShapeStyle::Fill, rect)?.draw(

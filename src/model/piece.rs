@@ -8,6 +8,7 @@ use super::actions::PinState;
 use super::board::Board;
 use super::board::Square;
 use super::board::BOARD_X;
+use super::chess_actions::movement::Move;
 
 pub const KNIGHT_OFFSETS: [i32; 8] = [-21, -19, -12, -8, 8, 12, 19, 21];
 pub const DIRECTIONS: [i32; 8] = [-10, -1, 1, 10, -11, -9, 9, 11];
@@ -68,42 +69,21 @@ fn pawn_moves(
 
     if resolve_check.is_empty() || resolve_check.contains(&push_one) {
         // Push one square
-        if let Square::Inside(option) = board.piece_at_mailbox_index(push_one) {
-            if option.is_some() {
-                return moves;
-            }
+        if let Square::Inside(Some(_)) = board.piece_at_mailbox_index(push_one) {
+            return moves;
         };
     }
 
-    moves.append(&mut actions::get_moves_for_piece_and_direction(
-        position,
-        direction,
-        false,
-        &Piece::Pawn { color: *color },
-        board,
-        resolve_check,
-        pins,
-    ));
+    moves.push(Box::new(Move::new(position , (position as i32 + direction) as usize)));
 
     // Push 2 squares
     if Board::is_on_pawn_flag(color, position) {
-        if let Square::Inside(option) =
+        if let Square::Inside(Some(_)) =
             board.piece_at_mailbox_index((position as i32 + (2 * direction)) as usize)
         {
-            if option.is_some() {
                 return moves;
-            }
         }
-
-        moves.append(&mut actions::get_moves_for_piece_and_direction(
-            position,
-            2 * direction,
-            false,
-            &Piece::Pawn { color: *color },
-            board,
-            resolve_check,
-            pins,
-        ));
+        moves.push(Box::new(Move::new(position , (position as i32 + (2 * direction)) as usize)));
     }
 
     return moves;

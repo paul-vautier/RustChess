@@ -36,14 +36,16 @@ impl Clone for Capture {
 impl ChessAction for Capture {
     fn execute(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         self.piece = board.move_piece(self.position.start, self.position.end)?;
-        if self.en_passant_position.is_some() {
-            self.piece = board.remove_piece(self.en_passant_position.unwrap());
+        if let Some(en_passant_position) = self.en_passant_position {
+            self.piece = board.remove_piece(en_passant_position);
         }
+        assert!(self.piece.is_some());
         Ok(())
     }
 
     fn undo(&mut self, board: &mut Board) -> Result<(), InvalidMoveError> {
         board.move_piece(self.position.end, self.position.start)?;
+
         let piece_pos = self
             .en_passant_position
             .map(|position| {
@@ -51,6 +53,7 @@ impl ChessAction for Capture {
                 position
             })
             .unwrap_or(self.position.end);
+
         board
             .add_piece(piece_pos, self.piece.take().unwrap())
             .map_err(|error| InvalidMoveError {

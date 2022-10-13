@@ -264,7 +264,7 @@ pub fn get_moves_for_piece_and_direction(
 
     let mut end = (start as i32 + direction) as usize;
     loop {
-        let move_option: Option<Box<dyn ChessAction>> = match board.piece_at_mailbox_index(end) {
+        match board.piece_at_mailbox_index(end) {
             Outside => break,
             Inside(option) => {
                 if !resolve_check.is_empty() && !resolve_check.contains(&end) {
@@ -285,15 +285,11 @@ pub fn get_moves_for_piece_and_direction(
                         }
                         break;
                     }
-                    None => Some(Box::new(Move::new(start, end))),
+                    None => moves.push(Box::new(Move::new(start, end))),
                 }
             }
         };
-        if let Piece::Pawn { color: _ } = current_piece {
-            moves.append(&mut to_promotion(move_option, current_piece, end));
-        } else {
-            moves.extend(move_option);
-        }
+
         if !is_slide {
             break;
         }

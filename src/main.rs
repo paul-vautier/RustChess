@@ -9,7 +9,7 @@ mod view;
 
 const fen: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
 const default: &str = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR";
-const turn: u32 = 2;
+const turn: u32 = 1;
 fn main() {
     bench();
 }
@@ -26,7 +26,7 @@ fn bench() {
     board.turn = turn;
     println!(
         "count: {}",
-        generator::generator::count_actions(&mut board, 6, true)
+        generator::generator::count_actions(&mut board, 5, true)
     );
     println!("elapsed: {}", now.elapsed().as_millis());
 }

@@ -1,4 +1,4 @@
-use crate::model::board::Square::*;
+use crate::model::board::{Square::*, TO_MAILBOX, TO_BOARD};
 use crate::model::board::{BOARD_SIZE, BOARD_X};
 use crate::model::{board::Board, piece::Color, piece::Piece};
 
@@ -44,6 +44,12 @@ impl fmt::Display for Board {
             } else {
                 colored_cell.to_string().on_truecolor(153, 102, 0)
             };
+
+            if let Some((ghost, _)) = self.double_pawn_move {
+                if ghost == TO_MAILBOX[index] {
+                    cells[index] = colored_cell.to_string().on_truecolor(100, 200, 100);
+                }
+            }
             index += 1;
         }
 
