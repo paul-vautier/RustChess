@@ -169,11 +169,11 @@ pub fn generate_moves(board: &Board) -> MovesList {
     let mut double_check = false;
     for direction in piece::DIRECTIONS {
         if let Some((position, piece)) = board.ray(king_position, direction) {
-            if *piece.get_color() == playing_color {
+            if piece.get_color() == playing_color {
                 // If potential pin, sadly we can't combine condition as if let && are still unstable
                 if let Some((_, behind)) = board.ray(position, direction) {
                     // Pinned
-                    if *behind.get_color() != playing_color
+                    if behind.get_color() != playing_color
                         && behind.is_sliding()
                         && behind.has_direction(-direction)
                     {
@@ -212,7 +212,7 @@ pub fn generate_moves(board: &Board) -> MovesList {
             color: knight_color,
         })) = board.piece_at_mailbox_index(knight_position as usize)
         {
-            if *knight_color != playing_color {
+            if knight_color != playing_color {
                 if resolve_check.is_empty() {
                     resolve_check.push(knight_position as usize);
                 } else {
@@ -321,7 +321,7 @@ pub fn pawn_captures(
                     },
                 )) => {
                     if let Some((_, piece)) = board.ray(pawn, -dir) {
-                        if board.color_turn() == *color
+                        if board.color_turn() == color
                             && piece.get_color() != color
                             && piece.is_sliding()
                             && piece.has_direction(dir)
@@ -333,7 +333,7 @@ pub fn pawn_captures(
                 Some((_, piece)) => {
                     if piece.is_sliding()
                         && piece.has_direction(-dir)
-                        && board.color_turn() != *piece.get_color()
+                        && board.color_turn() != piece.get_color()
                     {
                         if let Some((
                             _,

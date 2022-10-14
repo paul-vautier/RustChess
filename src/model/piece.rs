@@ -21,6 +21,14 @@ pub enum Color {
     BLACK,
 }
 
+impl Color {
+    pub fn next(&self) -> Self {
+        match self {
+            Color::WHITE => Color::BLACK,
+            Color::BLACK => Color::WHITE,
+        }
+    }
+}
 #[derive(PartialEq, Clone, Copy, Debug)]
 pub enum Piece {
     Pawn { color: Color },
@@ -126,7 +134,7 @@ impl Piece {
         pins: &BoardPins,
     ) -> MovesList {
         use Piece::*;
-        if *self.get_color() != board.color_turn() {
+        if self.get_color() != board.color_turn() {
             return MovesList(Vec::new());
         }
         match self {

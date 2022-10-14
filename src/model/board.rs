@@ -47,6 +47,12 @@ pub enum Square {
     Outside,
 }
 
+pub enum CastleRights {
+    All,
+    KingSide,
+    QueenSide,
+    None,
+}
 pub struct Board {
     mailbox: [Square; BOARD_SIZE],
     pub double_pawn_move: Option<(usize, usize)>, // (ghost, pawn)
@@ -57,7 +63,11 @@ pub struct Board {
     pub pieces: [usize; MAX_PIECES_COUNT],
     pieces_map: [usize; BOARD_SIZE],
     num_pieces: usize,
+    color_to_play: Color,
+    black_castles_right: CastleRights,
+    white_castles_right: CastleRights,
 }
+
 pub struct BoardIterator<'a> {
     pub index: usize,
     pub board: &'a Board,
@@ -267,6 +277,7 @@ impl Board {
                 }
                 self.history.push_back(action);
                 self.turn += 1;
+                self.color_to_play = self.color_to_play.next();
             }
             Err(err) => println!("do : {}, action: {:?}, \n{}", err.reason, action, self),
         }
@@ -303,6 +314,7 @@ impl Board {
                         },
                         Square::Outside => (),
                     };
+                    self.color_to_play = self.color_to_play.next();
                     self.turn -= 1;
                     if let Some(action) = self.history.back() {
                         self.double_pawn_move = action.double_forward();
@@ -338,12 +350,8 @@ impl Board {
         }
     }
 
-    pub fn color_turn(&self) -> Color {
-        if self.turn & 1 == 0 {
-            Color::BLACK
-        } else {
-            Color::WHITE
-        }
+    pub fn color_turn(&self) -> &Color {
+        &self.color_to_play
     }
 
     pub fn is_on_pawn_flag(color: &Color, index: usize) -> bool {
@@ -393,6 +401,7 @@ impl Board {
             pieces: [(); MAX_PIECES_COUNT].map(|_| 0),
             pieces_map: [(); BOARD_SIZE].map(|_| 0),
             num_pieces: 0,
+            color_to_play: Color::WHITE,
         }
     }
 
@@ -410,91 +419,101 @@ impl Board {
         let mut board = Board::empty();
         use Square::*;
         for (i, c) in notation.chars().into_iter().enumerate() {
-            match c.to_lowercase().next() {
-                Some(current) => match current {
-                    // TODO : VERIFY KING MOVED
-                    'k' => {
-                        let color = Board::get_color_fen(c);
+            if index < BOARD_SIZE {
+                match c.to_lowercase().next() {
+                    Some(current) => match current {
+                        // TODO : VERIFY KING MOVED
+                        'k' => {
+                            let color = Board::get_color_fen(c);
 
-                        match color {
-                            Color::WHITE => {
-                                if let None = white_king {
-                                    white_king = Some(index)
-                                } else {
-                                    return Err(InvalidBoardErr {
-                                        err: "Multiple black kings where found on the board"
-                                            .to_string(),
-                                    });
+                            match color {
+                                Color::WHITE => {
+                                    if let None = white_king {
+                                        white_king = Some(index)
+                                    } else {
+                                        return Err(InvalidBoardErr {
+                                            err: "Multiple black kings where found on the board"
+                                                .to_string(),
+                                        });
+                                    }
+                                }
+                                Color::BLACK => {
+                                    if let None = black_king {
+                                        black_king = Some(index)
+                                    } else {
+                                        return Err(InvalidBoardErr {
+                                            err: "Multiple black kings where found on the board"
+                                                .to_string(),
+                                        });
+                                    }
                                 }
                             }
-                            Color::BLACK => {
-                                if let None = black_king {
-                                    black_king = Some(index)
-                                } else {
-                                    return Err(InvalidBoardErr {
-                                        err: "Multiple black kings where found on the board"
-                                            .to_string(),
-                                    });
-                                }
-                            }
+                            board.set_piece_inside(
+                                index,
+                                Piece::King {
+                                    color: Board::get_color_fen(c),
+                                    first_move: u32::MAX,
+                                },
+                            )
                         }
-                        board.set_piece_inside(
+                        'q' => board.set_piece_inside(
                             index,
-                            Piece::King {
+                            Piece::Queen {
+                                color: Board::get_color_fen(c),
+                            },
+                        ),
+                        // TODO : VERIFY TOWER MOVED
+                        'r' => board.set_piece_inside(
+                            index,
+                            Piece::Rook {
                                 color: Board::get_color_fen(c),
                                 first_move: u32::MAX,
                             },
-                        )
-                    }
-                    'q' => board.set_piece_inside(
-                        index,
-                        Piece::Queen {
-                            color: Board::get_color_fen(c),
-                        },
-                    ),
-                    // TODO : VERIFY TOWER MOVED
-                    'r' => board.set_piece_inside(
-                        index,
-                        Piece::Rook {
-                            color: Board::get_color_fen(c),
-                            first_move: u32::MAX,
-                        },
-                    ),
-                    'b' => board.set_piece_inside(
-                        index,
-                        Piece::Bishop {
-                            color: Board::get_color_fen(c),
-                        },
-                    ),
-                    'p' => board.set_piece_inside(
-                        index,
-                        Piece::Pawn {
-                            color: Board::get_color_fen(c),
-                        },
-                    ),
-                    'n' => board.set_piece_inside(
-                        index,
-                        Piece::Knight {
-                            color: Board::get_color_fen(c),
-                        },
-                    ),
-                    '1'..='8' => {
-                        let empty_size = (c.to_digit(10).unwrap_or(1) - 1) as usize;
-                        for i in 0..=empty_size {
-                            board.mailbox[index + i] = Inside(None)
+                        ),
+                        'b' => board.set_piece_inside(
+                            index,
+                            Piece::Bishop {
+                                color: Board::get_color_fen(c),
+                            },
+                        ),
+                        'p' => board.set_piece_inside(
+                            index,
+                            Piece::Pawn {
+                                color: Board::get_color_fen(c),
+                            },
+                        ),
+                        'n' => board.set_piece_inside(
+                            index,
+                            Piece::Knight {
+                                color: Board::get_color_fen(c),
+                            },
+                        ),
+                        '1'..='8' => {
+                            let empty_size = (c.to_digit(10).unwrap_or(1) - 1) as usize;
+                            for i in 0..=empty_size {
+                                board.mailbox[index + i] = Inside(None)
+                            }
+                            index += empty_size as usize;
                         }
-                        index += empty_size as usize;
-                    }
-                    '/' => {
-                        if (index - offset) % 8 != 0 {
+                        '/' => {
+                            if (index - offset) % 8 != 0 {
+                                return Err(InvalidBoardErr {
+                                    err: String::from(format!("Invalid return at index {}", i)),
+                                });
+                            }
+                            index += 1;
+                            offset += 2;
+                        }
+                        _ => {
                             return Err(InvalidBoardErr {
-                                err: String::from(format!("Invalid return at index {}", i)),
-                            });
+                                err: String::from(format!(
+                                    "Could not identify the character {} at index {}",
+                                    c, i
+                                )),
+                            })
                         }
-                        index += 1;
-                        offset += 2;
-                    }
-                    _ => {
+                    },
+                    None => {
                         return Err(InvalidBoardErr {
                             err: String::from(format!(
                                 "Could not identify the character {} at index {}",
@@ -502,16 +521,8 @@ impl Board {
                             )),
                         })
                     }
-                },
-                None => {
-                    return Err(InvalidBoardErr {
-                        err: String::from(format!(
-                            "Could not identify the character {} at index {}",
-                            c, i
-                        )),
-                    })
-                }
-            };
+                };
+            }
             index += 1;
         }
         board.double_pawn_move = None;
