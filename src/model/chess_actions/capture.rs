@@ -108,7 +108,7 @@ impl ChessAction for Capture {
                     panic!("Should not have happened : A move was created without a valid piece")
                 }
             },
-            Outside => {
+            board::Square::Outside => {
                 panic!("Should not have happened : A move was created without a valid square")
             }
         };

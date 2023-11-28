@@ -1,6 +1,4 @@
 use std::collections::VecDeque;
-use std::ops::Add;
-use std::ops::Index;
 
 use super::actions::ChessAction;
 
@@ -402,6 +400,8 @@ impl Board {
             pieces_map: [(); BOARD_SIZE].map(|_| 0),
             num_pieces: 0,
             color_to_play: Color::WHITE,
+            white_castles_right: CastleRights::All,
+            black_castles_right: CastleRights::All
         }
     }
 

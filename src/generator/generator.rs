@@ -1,6 +1,6 @@
 use crate::model::{actions, board::Board};
 
-pub fn count_actions(board: &mut Board, depth: usize, is_start: bool) -> u32 {
+pub fn count_actions(board: &mut Board, depth: u32, is_start: bool) -> u32 {
     if depth == 0 {
         return 1;
     }

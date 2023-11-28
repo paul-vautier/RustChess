@@ -1,8 +1,8 @@
-use crate::model::board::{Square::*, TO_BOARD};
+use crate::model::board::{Square::*};
 use std::collections::HashMap;
-use std::ops::{Add, Deref, DerefMut};
+use std::ops::{Deref, DerefMut};
 
-use super::board::{Board, InvalidMoveError, Square, BOARD_X};
+use super::board::{Board, InvalidMoveError, Square};
 use super::chess_actions::capture::Capture;
 use super::chess_actions::castle::Castle;
 use super::chess_actions::movement::Move;
