@@ -1,20 +1,18 @@
 use std::{
-    cmp::{self, min_by},
-    ops::{Deref, DerefMut},
+    cmp::{self},
     path::Path,
-    thread::current,
 };
 
 use tetra::{
     graphics::{self, mesh::Mesh, DrawParams, Rectangle, Texture},
     input::{self, Key, MouseButton},
     math::Vec2,
-    window, Context, State, TetraError,
+    Context, State, TetraError,
 };
 
 use crate::model::{
     actions::{self, ChessAction},
-    board::{Board, Square, TO_BOARD, TO_MAILBOX},
+    board::Board,
     piece::{self, Color, Piece},
 };
 const PIECE_TO_SQUARE_RATIO: f32 = 0.9;
@@ -121,14 +119,13 @@ impl TetraState {
             return;
         }
         let position = x + 8 * y;
-        if let Some(_) = self.board.piece_at_board_index(position) {
+        if let Some(_) = self.board.piece_at(position) {
             self.selected_piece = Some(position);
             self.valid_squares = actions::generate_moves(&self.board)
                 .iter()
-                .filter(|current_move| current_move.start_square() == TO_MAILBOX[position])
+                .filter(|current_move| current_move.start_square() == position)
                 .map(Box::as_ref)
                 .map(ChessAction::target_square)
-                .map(|index| TO_BOARD[index] as usize)
                 .collect();
             println!("{}", self.valid_squares.len())
         }
@@ -148,7 +145,7 @@ impl TetraState {
 
         let position = x + 8 * y;
         if let Some(start) = self.selected_piece {
-            if let Some(piece) = self.board.piece_at_board_index(start as usize) {
+            if let Some(piece) = self.board.piece_at(start as usize) {
                 let mut moves = actions::generate_moves(&self.board);
                 let mut selected: Vec<Box<dyn ChessAction>> = Vec::new();
 
@@ -276,7 +273,7 @@ impl State for TetraState {
             )
         }
         if let Some(index) = self.selected_piece {
-            match self.board.piece_at_board_index(index) {
+            match self.board.piece_at(index) {
                 Some(piece) => {
                     let texture = self.piece_to_texture(piece);
                     draw_resize(
