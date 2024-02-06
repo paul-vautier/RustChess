@@ -4,7 +4,11 @@ use std::ops::{Deref, DerefMut};
 use super::board::{Board, BOARD_SIZE, InvalidMoveError};
 use super::piece::Color;
 
-pub struct ChessAction{}
+pub struct ChessAction{
+    pub begin : usize,
+    pub end : usize, 
+
+}
 
 impl ChessAction {
     pub fn to_algebraic_notation(&self, board : &Board) -> String {

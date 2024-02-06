@@ -37,17 +37,18 @@ pub struct InvalidMoveError {
     pub end: usize,
     pub reason: String,
 }
-const PIECE_TYPE_COUNT: usize = 8;
+const PIECE_TYPE_COUNT: usize = 16;
+const PLAYER_COUNT: usize = 2;
 pub struct Board {
     pub double_pawn_move: Option<(usize, usize)>, // (ghost, pawn)
-    pub history: VecDeque<Box<dyn ChessAction>>,
+    pub history: VecDeque<ChessAction>,
     pub turn: u32,
+    pub player_turn : bool,
     pub white_king: usize,
     pub black_king: usize,
     pub pieces: [Option<Piece>; BOARD_SIZE],
-    pub BB: [BitBoard; PIECE_TYPE_COUNT],
+    pub bitboards: [[BitBoard ; PIECE_TYPE_COUNT]; PLAYER_COUNT],
     num_pieces: usize,
-    color_to_play: Color,
     black_castles_right: CastleRights,
     white_castles_right: CastleRights,
 }
